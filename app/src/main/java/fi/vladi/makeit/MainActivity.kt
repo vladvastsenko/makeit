@@ -59,7 +59,7 @@ class MainActivity : ComponentActivity() {
       }
      } else Box(Modifier.fillMaxSize().padding(pad)){
       Image(painterResource(R.drawable.makeit_background),null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
-      Box(Modifier.fillMaxSize().background(Color(0xFFF7F3EB).copy(alpha=0.35f)))
+      Box(Modifier.fillMaxSize().background(Color(0xFFF7F3EB).copy(alpha=0.62f)))
       Column(Modifier.fillMaxSize().padding(20.dp).verticalScroll(rememberScrollState()), verticalArrangement=Arrangement.spacedBy(16.dp)) {
       Text("MakeIt.", style=MaterialTheme.typography.displayMedium,color=MaterialTheme.colorScheme.primary)
       if(!guest || page==4) {
