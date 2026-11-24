@@ -57,6 +57,16 @@ fun PatternEditor(lang: String, openProjects:Boolean=false, selectedProject:Stri
  val more=advancedLabels[lang] ?: advancedLabels.getValue("en")
  val options=printLabels[lang] ?: printLabels.getValue("en")
  var threshold by remember { mutableStateOf(25f) }
+ var isolate by remember { mutableStateOf(false) }
+ var left by remember { mutableStateOf(0f) }
+ var top by remember { mutableStateOf(0f) }
+ var right by remember { mutableStateOf(1f) }
+ var bottom by remember { mutableStateOf(1f) }
+ var tolerance by remember { mutableStateOf(12f) }
+ var cutOnly by remember { mutableStateOf(false) }
+ var processing by remember { mutableStateOf(false) }
+ var emptyContour by remember { mutableStateOf(false) }
+ val seg=segmentLabels[lang] ?: segmentLabels.getValue("en")
  var processed by remember { mutableStateOf<Bitmap?>(null) }
  var busy by remember { mutableStateOf(false) }
  var status by remember { mutableStateOf("") }
@@ -131,21 +141,34 @@ fun PatternEditor(lang: String, openProjects:Boolean=false, selectedProject:Stri
 }
  }
  }
- LaunchedEffect(bitmap,outline,threshold,exterior) {
+ LaunchedEffect(bitmap,outline,threshold,exterior,isolate,left,top,right,bottom,tolerance,cutOnly) {
   processed=null
   val b=bitmap
-  if(outline && b!=null) processed=withContext(Dispatchers.Default){outlineBitmap(b,threshold.toInt()).let { if(exterior)outerOnly(it) else it }}
+  emptyContour=false
+  processing=outline&&b!=null
+  try {
+   if(outline && b!=null) {
+    val result=withContext(Dispatchers.Default){
+     val subject=if(isolate)isolatePattern(b,left,top,right,bottom,tolerance.toInt()) else b
+     val lines=if(isolate&&cutOnly)silhouettePattern(subject) else outlineBitmap(subject,threshold.toInt()).let { if(exterior)outerOnly(it) else it }
+     val pixels=IntArray(lines.width*lines.height)
+     lines.getPixels(pixels,0,lines.width,0,0,lines.width,lines.height)
+     lines to pixels.none{it==android.graphics.Color.BLACK}
+    }
+    processed=result.first;emptyContour=result.second
+   }
+  } finally {processing=false}
  }
- val preview=if(outline)processed else bitmap
+ val preview=if(outline)processed ?: bitmap else bitmap
  LaunchedEffect(uri){if(uri!=null){strokes.clear();groups.clear();redo.clear()}}
  LaunchedEffect(bitmap){bitmap?.let { if(lockRatio&&projectId==null&&uri!=null) height=((width.replace(',','.').toDoubleOrNull() ?: 110.0)*it.height/it.width).toString() }}
  val w=width.replace(',','.').toDoubleOrNull()
  val h=height.replace(',','.').toDoubleOrNull()
  val layout=if(w!=null&&h!=null&&w in 0.1..1000.0&&h in 0.1..1000.0) SheetLayout(w*10,h*10,a3) else null
  val saver=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { dest ->
-  val image=preview
+  val image=if(outline)processed else bitmap
   val plan=layout
-  if(dest!=null&&image!=null&&plan!=null){
+  if(dest!=null&&image!=null&&plan!=null&&!processing&&!emptyContour){
    busy=true
    scope.launch {
     status=try { withContext(Dispatchers.IO){context.contentResolver.openOutputStream(dest)?.use{val base=if(outline)image else outlineBitmap(image,threshold.toInt()).let { b -> if(exterior)outerOnly(b) else b }
@@ -159,7 +182,7 @@ fun PatternEditor(lang: String, openProjects:Boolean=false, selectedProject:Stri
  }
  var pendingReplace by remember { mutableStateOf<(() -> Unit)?>(null) }
  fun replaceDraft(action:()->Unit){if(bitmap!=null)pendingReplace=action else action()}
- val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { if(it != null) {projectId=null;projectName="";uri=it} }
+ val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { if(it != null) {projectId=null;projectName="";isolate=false;cutOnly=false;left=0f;top=0f;right=1f;bottom=1f;zoom=1f;pan=Offset.Zero;uri=it} }
  LaunchedEffect(uri) {
   val selected = uri ?: return@LaunchedEffect
   bitmap=null
@@ -259,10 +282,24 @@ fun PatternEditor(lang: String, openProjects:Boolean=false, selectedProject:Stri
 
  OutlinedTextField(projectName,{projectName=it},label={Text(pm[1])},singleLine=true,modifier=Modifier.fillMaxWidth())
  Button(onClick={replaceDraft{picker.launch("image/*")}},modifier=Modifier.fillMaxWidth()){Text(t[1])}
+ if(bitmap!=null){
+ Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically){Checkbox(isolate,{isolate=it;if(it)outline=true});Text(seg[0])}
+ if(isolate){
+ Text(seg[1])
+ Text("←");Slider(left,{left=it},valueRange=0f..(right-0.05f).coerceAtLeast(0.01f))
+ Text("↑");Slider(top,{top=it},valueRange=0f..(bottom-0.05f).coerceAtLeast(0.01f))
+ Text("→");Slider(right,{right=it},valueRange=(left+0.05f).coerceAtMost(0.99f)..1f)
+ Text("↓");Slider(bottom,{bottom=it},valueRange=(top+0.05f).coerceAtMost(0.99f)..1f)
+ Text(seg[2]);Slider(tolerance,{tolerance=it},valueRange=2f..40f)
+ Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically){Checkbox(cutOnly,{cutOnly=it});Text(seg[3])}
+ }
+ if(processing)LinearProgressIndicator(Modifier.fillMaxWidth())
+ if(emptyContour)Text(seg[4],color=MaterialTheme.colorScheme.error)
+ }
  preview?.let { b ->
  Box(Modifier.fillMaxWidth().aspectRatio(b.width.toFloat()/b.height).clipToBounds().pointerInput(editing){if(!editing)detectTransformGestures { _,delta,scale,_ -> zoom=(zoom*scale).coerceIn(1f,6f);pan=if(zoom==1f)Offset.Zero else pan+delta }}) {
  Box(Modifier.matchParentSize().graphicsLayer { scaleX=zoom;scaleY=zoom;translationX=pan.x;translationY=pan.y }) {
- Image(b.asImageBitmap(),contentDescription=t[1],modifier=Modifier.matchParentSize(),contentScale=ContentScale.FillBounds)
+ Image(b.asImageBitmap(),contentDescription=t[1],modifier=Modifier.matchParentSize().background(Color.White),contentScale=ContentScale.FillBounds)
  Canvas(Modifier.matchParentSize().pointerInput(editing,erase,b){if(editing)detectDragGestures(onDragStart={gestureStart=strokes.size},onDragEnd={if(strokes.size>gestureStart)groups.add(strokes.size-gestureStart)},onDragCancel={if(strokes.size>gestureStart)groups.add(strokes.size-gestureStart)}) { change,drag ->
  val end=change.position
  val start=end-drag
@@ -421,3 +458,19 @@ private val projectLabels=mapOf(
 "da" to listOf("Projekter","Navn","Åbn","Omdøb","Dupliker","Slet","Annuller"))
 
 private val replaceLabels=mapOf("en" to "Replace current draft?","fi" to "Korvataanko nykyinen luonnos?","et" to "Asendada praegune mustand?","ru" to "Заменить текущий черновик?","sv" to "Ersätta aktuellt utkast?","de" to "Aktuellen Entwurf ersetzen?","fr" to "Remplacer le brouillon actuel ?","pl" to "Zastąpić bieżący szkic?","es" to "¿Reemplazar el borrador actual?","it" to "Sostituire la bozza attuale?","lv" to "Aizstāt pašreizējo melnrakstu?","lt" to "Pakeisti dabartinį juodraštį?","nb" to "Erstatte gjeldende utkast?","da" to "Erstat den aktuelle kladde?")
+
+private val segmentLabels=mapOf(
+"en" to listOf("Remove background","Object bounds","Background tolerance","Cut silhouette only","No contour found. Adjust selection or sensitivity."),
+"fi" to listOf("Poista tausta","Kohteen rajat","Taustan toleranssi","Vain leikkausääriviiva","Ääriviivaa ei löytynyt. Säädä valintaa tai herkkyyttä."),
+"et" to listOf("Eemalda taust","Objekti piirid","Tausta tolerants","Ainult lõikekontuur","Kontuuri ei leitud. Muuda valikut või tundlikkust."),
+"ru" to listOf("Удалить фон","Границы объекта","Допуск удаления фона","Только контур резки","Контур не найден. Измените область или чувствительность."),
+"sv" to listOf("Ta bort bakgrund","Objektgränser","Bakgrundstolerans","Endast skärkontur","Ingen kontur hittades. Justera urval eller känslighet."),
+"de" to listOf("Hintergrund entfernen","Objektgrenzen","Hintergrundtoleranz","Nur Schnittkontur","Keine Kontur gefunden. Auswahl oder Empfindlichkeit ändern."),
+"fr" to listOf("Supprimer le fond","Limites de l’objet","Tolérance du fond","Contour de découpe seul","Aucun contour trouvé. Ajustez la sélection ou la sensibilité."),
+"pl" to listOf("Usuń tło","Granice obiektu","Tolerancja tła","Tylko kontur cięcia","Nie znaleziono konturu. Zmień zaznaczenie lub czułość."),
+"es" to listOf("Eliminar fondo","Límites del objeto","Tolerancia del fondo","Solo contorno de corte","No se encontró contorno. Ajusta selección o sensibilidad."),
+"it" to listOf("Rimuovi sfondo","Limiti oggetto","Tolleranza sfondo","Solo contorno di taglio","Nessun contorno. Regola selezione o sensibilità."),
+"lv" to listOf("Noņemt fonu","Objekta robežas","Fona tolerance","Tikai griešanas kontūra","Kontūra nav atrasta. Mainiet atlasi vai jutību."),
+"lt" to listOf("Pašalinti foną","Objekto ribos","Fono tolerancija","Tik pjovimo kontūras","Kontūras nerastas. Keiskite pasirinkimą arba jautrumą."),
+"nb" to listOf("Fjern bakgrunn","Objektgrenser","Bakgrunnstoleranse","Kun skjærekontur","Ingen kontur funnet. Juster utvalg eller følsomhet."),
+"da" to listOf("Fjern baggrund","Objektgrænser","Baggrundstolerance","Kun skærekontur","Ingen kontur fundet. Juster valg eller følsomhed."))
