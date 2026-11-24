@@ -28,6 +28,7 @@ class MainActivity : ComponentActivity() {
    var lang by remember { mutableStateOf((prefs.getString("language", "en") ?: "en").takeIf { it in languages } ?: "en") }
    var guest by remember { mutableStateOf(prefs.getBoolean("guest", false)) }
    var page by remember { mutableIntStateOf(0) }
+   var selectedProject by remember { mutableStateOf<String?>(null) }
    val labels = translations[lang] ?: translations.getValue("en")
    MaterialTheme(colorScheme = lightColorScheme(primary=Color(0xFF243D35), secondary=Color(0xFFB45D30), background=Color(0xFFF7F3EB), surface=Color(0xFFFFFCF6), surfaceVariant=Color(0xFFE5EAE1), tertiary=Color(0xFFB45D30))) {
     Scaffold(bottomBar = { if(guest) NavigationBar(containerColor=Color(0xFFFFFCF6)) { labels.take(5).forEachIndexed { i, s -> NavigationBarItem(selected=page==i,onClick={page=i},icon={Text(listOf("⌂","☆","+","▣","⚙")[i],fontSize=23.sp)},label={Text(s,fontSize=10.sp)}) } } }) { pad ->
@@ -35,15 +36,21 @@ class MainActivity : ComponentActivity() {
       Text("MakeIt.", style=MaterialTheme.typography.displayMedium,color=MaterialTheme.colorScheme.primary)
       if(!guest || page==4) {
        Text(labels[5],style=MaterialTheme.typography.titleLarge)
-       languages.forEach { (id,name) -> OutlinedButton(onClick={lang=id;prefs.edit().putString("language",id).apply()},modifier=Modifier.fillMaxWidth()){Text(if(lang==id) "✓ $name" else name)} }
-       if(guest) { AccountSettings(lang); BackupSettings(lang) }
+       var expanded by remember { mutableStateOf(false) }
+       Box(Modifier.fillMaxWidth()){
+        OutlinedButton(onClick={expanded=true},modifier=Modifier.fillMaxWidth()){Text(languages.getValue(lang)+"  ▾")}
+        DropdownMenu(expanded=expanded,onDismissRequest={expanded=false}){
+         languages.forEach{(id,name)->DropdownMenuItem(text={Text(name)},onClick={lang=id;prefs.edit().putString("language",id).apply();expanded=false})}
+        }
+       }
+       if(guest) { AccountSettings(lang) }
        if(!guest) Button(onClick={guest=true;prefs.edit().putBoolean("guest",true).apply()},modifier=Modifier.fillMaxWidth()){Text(backupLabels.getValue(lang)[4])}
       } else if(page==0) {
        Card(colors=CardDefaults.cardColors(containerColor=Color(0xFF243D35)),shape=RoundedCornerShape(24.dp)) {
         Column(Modifier.fillMaxWidth().padding(24.dp)) { Text("✦",color=Color(0xFFF5AD69),fontSize=48.sp); Text(labels[7],color=Color.White,style=MaterialTheme.typography.headlineMedium) }
        }
        listOf(2,1,3).forEachIndexed { j,i -> Card(onClick={page=i}, colors=CardDefaults.cardColors(containerColor=listOf(Color(0xFFFFD9B8),Color(0xFFD8E7DC),Color(0xFFDCE4F4))[j]),shape=RoundedCornerShape(20.dp)){Text(labels[i],Modifier.fillMaxWidth().padding(28.dp),style=MaterialTheme.typography.headlineSmall)} }
-      } else if(page==1) { IdeasCatalog(lang) { page=2 } } else if(page==2 || page==3) { key(page){PatternEditor(lang, page==3)} } else { Text(labels[page],style=MaterialTheme.typography.headlineMedium); Text(labels[8]) }
+      } else if(page==1) { IdeasCatalog(lang) { page=2 } } else if(page==2 || page==3) { key(page){PatternEditor(lang, page==3, selectedProject, { id -> selectedProject=id;page=2 })} } else { Text(labels[page],style=MaterialTheme.typography.headlineMedium); Text(labels[8]) }
      }
     }
    }
@@ -66,29 +73,6 @@ private val translations = mapOf(
 "lt" to listOf("Pradžia","Idėjos","Kurti","Projektai","Nustatymai","Kalba","Tęsti kaip svečiui","Nuo idėjos iki tikrovės","Netrukus"),
 "nb" to listOf("Hjem","Ideer","Opprett","Prosjekter","Innstillinger","Språk","Fortsett som gjest","Fra idé til virkelighet","Kommer snart"),
 "da" to listOf("Hjem","Idéer","Opret","Projekter","Indstillinger","Sprog","Fortsæt som gæst","Fra idé til virkelighed","Kommer snart"))
-
-@Composable
-private fun BackupSettings(lang:String){
- val t=backupLabels[lang] ?: backupLabels.getValue("en")
- val context=LocalContext.current
- val scope=rememberCoroutineScope()
- var busy by remember{mutableStateOf(false)}
- var status by remember{mutableStateOf("")}
- val save=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")){uri->
- if(uri!=null){busy=true;scope.launch{status=try{withContext(Dispatchers.IO){context.contentResolver.openOutputStream(uri)?.use{ProjectBackup.export(context,it)} ?: error("output")};t[2]}catch(e:Exception){t[3]}finally{busy=false}}}
- }
- val load=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()){uri->
- if(uri!=null){busy=true;scope.launch{status=try{withContext(Dispatchers.IO){context.contentResolver.openInputStream(uri)?.use{ProjectBackup.restore(context,it)} ?: error("input")};t[2]}catch(e:Exception){t[3]}finally{busy=false}}}
- }
- Card(Modifier.fillMaxWidth(),shape=RoundedCornerShape(20.dp)){
- Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
- Button(enabled=!busy,onClick={save.launch("MakeIt-backup.zip")},modifier=Modifier.fillMaxWidth()){Text(t[0])}
- OutlinedButton(enabled=!busy,onClick={load.launch(arrayOf("application/zip","application/octet-stream"))},modifier=Modifier.fillMaxWidth()){Text(t[1])}
- if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
- if(status.isNotEmpty())Text(status)
- }
- }
-}
 
 private val backupLabels=mapOf(
 "en" to listOf("Export backup","Import backup (copies)","Completed","Backup operation failed","Start"),
