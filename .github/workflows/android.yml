@@ -18,6 +18,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+      - name: Verify welcome artwork
+        run: test -s 5eff8f863dbd2a2a7ccc9e0c0632665fc37063aba20fcf9f844a0dce10047be3.png
       - run: gradle :app:assembleDebug --stacktrace
       - uses: actions/upload-artifact@v4
         with:
