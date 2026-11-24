@@ -26,6 +26,10 @@ jobs:
           test -s "$file"
           mkdir -p app/src/main/res/drawable-nodpi
           cp "$file" app/src/main/res/drawable-nodpi/welcome_background.png
+          test -s icon.png
+          test -s background.png
+          cp icon.png app/src/main/res/drawable-nodpi/makeit_icon.png
+          cp background.png app/src/main/res/drawable-nodpi/makeit_background.png
       - run: gradle :app:assembleDebug --stacktrace
       - uses: actions/upload-artifact@v4
         with:
