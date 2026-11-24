@@ -19,7 +19,7 @@ class MainActivity : ComponentActivity() {
   super.onCreate(savedInstanceState)
   val prefs = getSharedPreferences("makeit", MODE_PRIVATE)
   setContent {
-   var lang by remember { mutableStateOf(prefs.getString("language", "en") ?: "en") }
+   var lang by remember { mutableStateOf((prefs.getString("language", "en") ?: "en").takeIf { it in languages } ?: "en") }
    var guest by remember { mutableStateOf(prefs.getBoolean("guest", false)) }
    var page by remember { mutableIntStateOf(0) }
    val labels = translations[lang] ?: translations.getValue("en")
@@ -43,7 +43,7 @@ class MainActivity : ComponentActivity() {
   }
  }
 }
-private val languages = linkedMapOf("en" to "English","fi" to "Suomi","et" to "Eesti","ru" to "Русский","sv" to "Svenska","de" to "Deutsch","fr" to "Français","pl" to "Polski","es" to "Español","it" to "Italiano","uk" to "Українська","lv" to "Latviešu")
+private val languages = linkedMapOf("en" to "English","fi" to "Suomi","et" to "Eesti","ru" to "Русский","sv" to "Svenska","de" to "Deutsch","fr" to "Français","pl" to "Polski","es" to "Español","it" to "Italiano","lv" to "Latviešu")
 private val translations = mapOf(
 "en" to listOf("Home","Ideas","Create","Projects","Settings","Language","Continue as guest","From idea to reality","Coming soon"),
 "fi" to listOf("Etusivu","Ideat","Luo","Projektit","Asetukset","Kieli","Jatka vieraana","Ideasta todeksi","Tulossa pian"),
@@ -55,5 +55,4 @@ private val translations = mapOf(
 "pl" to listOf("Start","Pomysły","Utwórz","Projekty","Ustawienia","Język","Kontynuuj jako gość","Od pomysłu do realizacji","Wkrótce"),
 "es" to listOf("Inicio","Ideas","Crear","Proyectos","Ajustes","Idioma","Continuar como invitado","De la idea a la realidad","Próximamente"),
 "it" to listOf("Home","Idee","Crea","Progetti","Impostazioni","Lingua","Continua come ospite","Dall’idea alla realtà","Prossimamente"),
-"uk" to listOf("Головна","Ідеї","Створити","Проєкти","Налаштування","Мова","Продовжити як гість","Від ідеї до виробу","Незабаром"),
 "lv" to listOf("Sākums","Idejas","Izveidot","Projekti","Iestatījumi","Valoda","Turpināt kā viesim","No idejas līdz īstenošanai","Drīzumā"))
