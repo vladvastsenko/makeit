@@ -194,17 +194,26 @@ fun PatternEditor(lang: String, openProjects:Boolean=false, selectedProject:Stri
  }
  }
  pendingReplace?.let{action->AlertDialog(onDismissRequest={pendingReplace=null},title={Text(replaceLabels[lang] ?: replaceLabels.getValue("en"))},text={Column{Text(more[5]+" · "+pm[6]);Button(enabled=!busy&&layout!=null,onClick={saveCurrent{pendingReplace=null;action()}}){Text(more[5])}}},confirmButton={TextButton(enabled=!busy,onClick={pendingReplace=null;action()}){Text(pm[2])}},dismissButton={TextButton(onClick={pendingReplace=null}){Text(pm[6])}})}
+ deleteId?.let { id -> AlertDialog(onDismissRequest={deleteId=null},title={Text(pm[5]+"?")},confirmButton={TextButton(onClick={
+ val file=java.io.File(dir,id+".json")
+ runCatching{val j=readProject(file);check(file.delete());java.io.File(dir,j.getString("image")).delete();if(projectId==id){projectId=null;bitmap=null;draftFile.delete();draftImage.delete()};refresh++}.onFailure{status=extra[3]}
+ deleteId=null
+ }){Text(pm[5])}},dismissButton={TextButton(onClick={deleteId=null}){Text(pm[6])}}) }
  if(openProjects){
  Text(pm[0],style=MaterialTheme.typography.headlineMedium)
  for(file in projects){
  val j=remember(file){runCatching{readProject(file)}.getOrNull()} ?: continue
- Card(onClick={onOpenProject(file.nameWithoutExtension)},modifier=Modifier.fillMaxWidth()){
- Column(Modifier.padding(18.dp)){
- Text(j.optString("name",file.nameWithoutExtension),style=MaterialTheme.typography.titleLarge)
+ Card(modifier=Modifier.fillMaxWidth()){
+ Row(Modifier.fillMaxWidth().padding(12.dp),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically){
+ Column(Modifier.weight(1f)){
+ TextButton(onClick={onOpenProject(file.nameWithoutExtension)}){Text(j.optString("name",file.nameWithoutExtension),style=MaterialTheme.typography.titleLarge)}
  Text(j.optString("width")+" × "+j.optString("height")+" cm")
  }
+ TextButton(onClick={deleteId=file.nameWithoutExtension}){Text("🗑",color=MaterialTheme.colorScheme.error)}
  }
  }
+ }
+ if(status.isNotBlank())Text(status)
  return
  }
  Text(t[0],style=MaterialTheme.typography.headlineMedium)
@@ -247,11 +256,7 @@ fun PatternEditor(lang: String, openProjects:Boolean=false, selectedProject:Stri
  }
  }
  }
- deleteId?.let { id -> AlertDialog(onDismissRequest={deleteId=null},title={Text(pm[5]+"?")},confirmButton={TextButton(onClick={
- val file=java.io.File(dir,id+".json")
- runCatching{val j=readProject(file);check(file.delete());java.io.File(dir,j.getString("image")).delete();if(projectId==id)projectId=null;refresh++}.onFailure{status=extra[3]}
- deleteId=null
- }){Text(pm[5])}},dismissButton={TextButton(onClick={deleteId=null}){Text(pm[6])}}) }
+
  OutlinedTextField(projectName,{projectName=it},label={Text(pm[1])},singleLine=true,modifier=Modifier.fillMaxWidth())
  Button(onClick={replaceDraft{picker.launch("image/*")}},modifier=Modifier.fillMaxWidth()){Text(t[1])}
  preview?.let { b ->
