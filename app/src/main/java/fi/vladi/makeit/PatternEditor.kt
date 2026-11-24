@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.ceil
@@ -28,6 +29,32 @@ fun PatternEditor(lang: String) {
  var width by remember { mutableStateOf("110") }
  var height by remember { mutableStateOf("123") }
  var a3 by remember { mutableStateOf(false) }
+ var outline by remember { mutableStateOf(false) }
+ var threshold by remember { mutableStateOf(80f) }
+ var processed by remember { mutableStateOf<Bitmap?>(null) }
+ var busy by remember { mutableStateOf(false) }
+ var status by remember { mutableStateOf("") }
+ val extra=exportLabels[lang] ?: exportLabels.getValue("en")
+ val scope=rememberCoroutineScope()
+ LaunchedEffect(bitmap,outline,threshold) {
+  processed=null
+  val b=bitmap
+  if(outline && b!=null) processed=withContext(Dispatchers.Default){outlineBitmap(b,threshold.toInt())}
+ }
+ val preview=if(outline)processed else bitmap
+ val w=width.replace(',','.').toDoubleOrNull()
+ val h=height.replace(',','.').toDoubleOrNull()
+ val layout=if(w!=null&&h!=null&&w in 0.1..1000.0&&h in 0.1..1000.0) SheetLayout(w*10,h*10,a3) else null
+ val saver=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { dest ->
+  val image=preview
+  val plan=layout
+  if(dest!=null&&image!=null&&plan!=null){
+   busy=true
+   scope.launch {
+    status=try { withContext(Dispatchers.IO){context.contentResolver.openOutputStream(dest)?.use{exportPattern(image,plan,it)} ?: error("output")};extra[2] } catch(e:Exception){extra[3]} finally {busy=false}
+   }
+  }
+ }
  val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { if(it != null) uri=it }
  LaunchedEffect(uri) {
   val selected = uri ?: return@LaunchedEffect
@@ -46,19 +73,21 @@ fun PatternEditor(lang: String) {
  }
  Text(t[0],style=MaterialTheme.typography.headlineMedium)
  Button(onClick={picker.launch("image/*")},modifier=Modifier.fillMaxWidth()){Text(t[1])}
- bitmap?.let { Image(it.asImageBitmap(),contentDescription=t[1],modifier=Modifier.fillMaxWidth().heightIn(max=340.dp)) }
+ preview?.let { Image(it.asImageBitmap(),contentDescription=t[1],modifier=Modifier.fillMaxWidth().heightIn(max=340.dp)) }
+ Row { Checkbox(checked=outline,onCheckedChange={outline=it}); Text(extra[0],modifier=Modifier.padding(top=12.dp)) }
+ if(outline) Slider(value=threshold,onValueChange={threshold=it},valueRange=20f..250f)
  if(failed) Text(t[5],color=MaterialTheme.colorScheme.error)
  OutlinedTextField(width,{width=it},label={Text(t[2]+" (cm)")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal),singleLine=true)
  OutlinedTextField(height,{height=it},label={Text(t[3]+" (cm)")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal),singleLine=true)
  Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){FilterChip(selected=!a3,onClick={a3=false},label={Text("A4")});FilterChip(selected=a3,onClick={a3=true},label={Text("A3")})}
- val w=width.replace(',','.').toDoubleOrNull()
- val h=height.replace(',','.').toDoubleOrNull()
- if(w!=null&&h!=null&&w in 0.1..1000.0&&h in 0.1..1000.0){
-  val x=ceil((w*10-10).coerceAtLeast(1.0)/(if(a3)267 else 180)).toInt()
-  val y=ceil((h*10-10).coerceAtLeast(1.0)/(if(a3)390 else 267)).toInt()
-  Text(t[4]+": "+(x*y)+" ("+x+" × "+y+")",style=MaterialTheme.typography.titleLarge)
-  Text("10 mm + 10 mm")
+ if(layout!=null){
+  Text(t[4]+": "+layout.count+" ("+layout.columns+" × "+layout.rows+") + 1",style=MaterialTheme.typography.titleLarge)
+  Text("10 mm / 10 mm · 100%")
+  Button(enabled=preview!=null&&!busy&&layout.count<=400,onClick={saver.launch("MakeIt.pdf")},modifier=Modifier.fillMaxWidth()){Text(extra[1])}
  }
+ if(busy) LinearProgressIndicator(Modifier.fillMaxWidth())
+ if(status.isNotEmpty()) Text(status)
+
 }
 private val editorLabels=mapOf(
 "en" to listOf("Pattern editor","Choose image","Width","Height","Estimated sheets","Cannot open image"),
@@ -75,3 +104,19 @@ private val editorLabels=mapOf(
 "lt" to listOf("Šablonų rengyklė","Pasirinkti vaizdą","Plotis","Aukštis","Numatomas lapų skaičius","Nepavyko atverti vaizdo"),
 "nb" to listOf("Malredigering","Velg bilde","Bredde","Høyde","Anslått antall ark","Kan ikke åpne bildet"),
 "da" to listOf("Skabeloneditor","Vælg billede","Bredde","Højde","Anslået antal ark","Kan ikke åbne billedet"))
+
+private val exportLabels=mapOf(
+"en" to listOf("Outline","Save PDF","PDF saved","PDF export failed"),
+"fi" to listOf("Ääriviivat","Tallenna PDF","PDF tallennettu","PDF-vienti epäonnistui"),
+"et" to listOf("Kontuur","Salvesta PDF","PDF salvestatud","PDF eksport ebaõnnestus"),
+"ru" to listOf("Контуры","Сохранить PDF","PDF сохранён","Ошибка экспорта PDF"),
+"sv" to listOf("Konturer","Spara PDF","PDF sparad","PDF-export misslyckades"),
+"de" to listOf("Konturen","PDF speichern","PDF gespeichert","PDF-Export fehlgeschlagen"),
+"fr" to listOf("Contours","Enregistrer le PDF","PDF enregistré","Échec de l’export PDF"),
+"pl" to listOf("Kontury","Zapisz PDF","PDF zapisany","Błąd eksportu PDF"),
+"es" to listOf("Contornos","Guardar PDF","PDF guardado","Error al exportar PDF"),
+"it" to listOf("Contorni","Salva PDF","PDF salvato","Esportazione PDF non riuscita"),
+"lv" to listOf("Kontūras","Saglabāt PDF","PDF saglabāts","PDF eksportēšana neizdevās"),
+"lt" to listOf("Kontūrai","Išsaugoti PDF","PDF išsaugotas","PDF eksportuoti nepavyko"),
+"nb" to listOf("Konturer","Lagre PDF","PDF lagret","PDF-eksport mislyktes"),
+"da" to listOf("Konturer","Gem PDF","PDF gemt","PDF-eksport mislykkedes"))
