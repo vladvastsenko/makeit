@@ -163,3 +163,29 @@ private fun vectorLines(p:IntArray,w:Int,h:Int,wm:Float,hm:Float):Path {
  for(i in p.indices)if(p[i]==Color.BLACK&&!visited[i])trace(i)
  return path
 }
+
+/** Local color-connected background removal, seeded from the selected rectangle perimeter. */
+internal fun isolatePattern(source:Bitmap, left:Float, top:Float, right:Float, bottom:Float, tolerance:Int):Bitmap {
+ val w=source.width;val h=source.height
+ val p=IntArray(w*h);source.getPixels(p,0,w,0,0,w,h)
+ val x0=(left*w).toInt().coerceIn(0,w-1);val x1=(right*w).toInt().coerceIn(x0+1,w)
+ val y0=(top*h).toInt().coerceIn(0,h-1);val y1=(bottom*h).toInt().coerceIn(y0+1,h)
+ val seen=BooleanArray(p.size);val queue=IntArray(p.size);var head=0;var tail=0
+ fun seed(i:Int){if(!seen[i]){seen[i]=true;queue[tail++]=i}}
+ fun distance(a:Int,b:Int)=maxOf(kotlin.math.abs(Color.red(a)-Color.red(b)),kotlin.math.abs(Color.green(a)-Color.green(b)),kotlin.math.abs(Color.blue(a)-Color.blue(b)))
+ for(x in x0 until x1){seed(y0*w+x);seed((y1-1)*w+x)}
+ for(y in y0 until y1){seed(y*w+x0);seed(y*w+x1-1)}
+ while(head<tail){
+ val i=queue[head++];val x=i%w;val y=i/w
+ fun visit(j:Int){if(!seen[j]&&(Color.alpha(p[j])<128||distance(p[i],p[j])<=tolerance))seed(j)}
+ if(x>x0)visit(i-1);if(x<x1-1)visit(i+1);if(y>y0)visit(i-w);if(y<y1-1)visit(i+w)
+ }
+ val out=IntArray(p.size){i->val x=i%w;val y=i/w;if(x !in x0 until x1||y !in y0 until y1||seen[i])Color.TRANSPARENT else p[i]}
+ return Bitmap.createBitmap(out,w,h,Bitmap.Config.ARGB_8888)
+}
+internal fun silhouettePattern(source:Bitmap):Bitmap{
+ val w=source.width;val h=source.height;val p=IntArray(w*h);source.getPixels(p,0,w,0,0,w,h)
+ fun inside(x:Int,y:Int)=x in 0 until w&&y in 0 until h&&Color.alpha(p[y*w+x])>=128
+ val out=IntArray(p.size){i->val x=i%w;val y=i/w;if(inside(x,y)&&(!inside(x-1,y)||!inside(x+1,y)||!inside(x,y-1)||!inside(x,y+1)))Color.BLACK else Color.WHITE}
+ return Bitmap.createBitmap(out,w,h,Bitmap.Config.ARGB_8888)
+}
