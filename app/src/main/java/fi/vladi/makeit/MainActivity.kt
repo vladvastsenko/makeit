@@ -43,7 +43,7 @@ class MainActivity : ComponentActivity() {
   }
  }
 }
-private val languages = linkedMapOf("en" to "English","fi" to "Suomi","et" to "Eesti","ru" to "Русский","sv" to "Svenska","de" to "Deutsch","fr" to "Français","pl" to "Polski","es" to "Español","it" to "Italiano","lv" to "Latviešu")
+private val languages = linkedMapOf("en" to "English","fi" to "Suomi","et" to "Eesti","ru" to "Русский","sv" to "Svenska","de" to "Deutsch","fr" to "Français","pl" to "Polski","es" to "Español","it" to "Italiano","lv" to "Latviešu","lt" to "Lietuvių","nb" to "Norsk bokmål","da" to "Dansk")
 private val translations = mapOf(
 "en" to listOf("Home","Ideas","Create","Projects","Settings","Language","Continue as guest","From idea to reality","Coming soon"),
 "fi" to listOf("Etusivu","Ideat","Luo","Projektit","Asetukset","Kieli","Jatka vieraana","Ideasta todeksi","Tulossa pian"),
@@ -55,4 +55,7 @@ private val translations = mapOf(
 "pl" to listOf("Start","Pomysły","Utwórz","Projekty","Ustawienia","Język","Kontynuuj jako gość","Od pomysłu do realizacji","Wkrótce"),
 "es" to listOf("Inicio","Ideas","Crear","Proyectos","Ajustes","Idioma","Continuar como invitado","De la idea a la realidad","Próximamente"),
 "it" to listOf("Home","Idee","Crea","Progetti","Impostazioni","Lingua","Continua come ospite","Dall’idea alla realtà","Prossimamente"),
-"lv" to listOf("Sākums","Idejas","Izveidot","Projekti","Iestatījumi","Valoda","Turpināt kā viesim","No idejas līdz īstenošanai","Drīzumā"))
+"lv" to listOf("Sākums","Idejas","Izveidot","Projekti","Iestatījumi","Valoda","Turpināt kā viesim","No idejas līdz īstenošanai","Drīzumā"),
+"lt" to listOf("Pradžia","Idėjos","Kurti","Projektai","Nustatymai","Kalba","Tęsti kaip svečiui","Nuo idėjos iki tikrovės","Netrukus"),
+"nb" to listOf("Hjem","Ideer","Opprett","Prosjekter","Innstillinger","Språk","Fortsett som gjest","Fra idé til virkelighet","Kommer snart"),
+"da" to listOf("Hjem","Idéer","Opret","Projekter","Indstillinger","Sprog","Fortsæt som gæst","Fra idé til virkelighed","Kommer snart"))
