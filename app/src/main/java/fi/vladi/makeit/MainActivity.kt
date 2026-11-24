@@ -43,7 +43,7 @@ class MainActivity : ComponentActivity() {
         Column(Modifier.fillMaxWidth().padding(24.dp)) { Text("✦",color=Color(0xFFF5AD69),fontSize=48.sp); Text(labels[7],color=Color.White,style=MaterialTheme.typography.headlineMedium) }
        }
        listOf(2,1,3).forEachIndexed { j,i -> Card(onClick={page=i}, colors=CardDefaults.cardColors(containerColor=listOf(Color(0xFFFFD9B8),Color(0xFFD8E7DC),Color(0xFFDCE4F4))[j]),shape=RoundedCornerShape(20.dp)){Text(labels[i],Modifier.fillMaxWidth().padding(28.dp),style=MaterialTheme.typography.headlineSmall)} }
-      } else if(page==2 || page==3) { key(page){PatternEditor(lang, page==3)} } else { Text(labels[page],style=MaterialTheme.typography.headlineMedium); Text(labels[8]) }
+      } else if(page==1) { IdeasCatalog(lang) { page=2 } } else if(page==2 || page==3) { key(page){PatternEditor(lang, page==3)} } else { Text(labels[page],style=MaterialTheme.typography.headlineMedium); Text(labels[8]) }
      }
     }
    }
