@@ -60,6 +60,20 @@ fun PatternEditor(lang: String) {
  var status by remember { mutableStateOf("") }
  val extra=exportLabels[lang] ?: exportLabels.getValue("en")
  val scope=rememberCoroutineScope()
+ val dir=remember { java.io.File(context.filesDir,"projects").apply{mkdirs()} }
+ var projectId by remember { mutableStateOf<String?>(null) }
+ var projectName by remember { mutableStateOf("") }
+ var refresh by remember { mutableIntStateOf(0) }
+ var showProjects by remember { mutableStateOf(false) }
+ var deleteId by remember { mutableStateOf<String?>(null) }
+ val pm=projectLabels[lang] ?: projectLabels.getValue("en")
+ val projects=remember(refresh){dir.listFiles()?.filter{it.extension=="json"}?.sortedByDescending{it.lastModified()} ?: emptyList()}
+ fun readProject(file:java.io.File):org.json.JSONObject=org.json.JSONObject(file.readText())
+ fun writeProject(file:java.io.File,j:org.json.JSONObject){
+ val atomic=android.util.AtomicFile(file)
+ val stream=atomic.startWrite()
+ try{stream.write(j.toString().toByteArray(Charsets.UTF_8));atomic.finishWrite(stream)}catch(e:Exception){atomic.failWrite(stream);throw e}
+ }
  LaunchedEffect(bitmap,outline,threshold,exterior) {
   processed=null
   val b=bitmap
@@ -67,7 +81,7 @@ fun PatternEditor(lang: String) {
  }
  val preview=if(outline)processed else bitmap
  LaunchedEffect(uri){strokes.clear();groups.clear();redo.clear()}
- LaunchedEffect(bitmap){bitmap?.let { if(lockRatio) height=((width.replace(',','.').toDoubleOrNull() ?: 110.0)*it.height/it.width).toString() }}
+ LaunchedEffect(bitmap){bitmap?.let { if(lockRatio&&projectId==null) height=((width.replace(',','.').toDoubleOrNull() ?: 110.0)*it.height/it.width).toString() }}
  val w=width.replace(',','.').toDoubleOrNull()
  val h=height.replace(',','.').toDoubleOrNull()
  val layout=if(w!=null&&h!=null&&w in 0.1..1000.0&&h in 0.1..1000.0) SheetLayout(w*10,h*10,a3) else null
@@ -86,7 +100,7 @@ fun PatternEditor(lang: String) {
    }
   }
  }
- val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { if(it != null) uri=it }
+ val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { if(it != null) {projectId=null;projectName="";uri=it} }
  LaunchedEffect(uri) {
   val selected = uri ?: return@LaunchedEffect
   bitmap=null
@@ -103,6 +117,51 @@ fun PatternEditor(lang: String) {
   failed=bitmap==null
  }
  Text(t[0],style=MaterialTheme.typography.headlineMedium)
+ OutlinedButton(onClick={showProjects=!showProjects},modifier=Modifier.fillMaxWidth()){Text(pm[0])}
+ if(showProjects){
+ for(file in projects){
+ val j=remember(file,refresh){runCatching{readProject(file)}.getOrNull()} ?: continue
+ var name by remember(file,refresh){mutableStateOf(j.optString("name",file.nameWithoutExtension))}
+ Card(Modifier.fillMaxWidth().padding(vertical=4.dp)){
+ Column(Modifier.padding(12.dp)){
+ OutlinedTextField(name,{name=it},singleLine=true,label={Text(pm[1])})
+ Text(j.optString("width")+" × "+j.optString("height")+" cm")
+ Row{
+ TextButton(onClick={
+ try{
+ val b=BitmapFactory.decodeFile(java.io.File(dir,j.getString("image")).path) ?: error("image")
+ projectId=file.nameWithoutExtension;projectName=name
+ width=j.getString("width");height=j.getString("height");a3=j.optBoolean("a3");threshold=j.optDouble("threshold",80.0).toFloat();exterior=j.optBoolean("exterior");thickness=j.optDouble("thickness",0.5).toFloat();skipBlank=j.optBoolean("skipBlank",true);outline=j.optBoolean("outline",true);lockRatio=j.optBoolean("lockRatio",true)
+ strokes.clear();groups.clear();redo.clear()
+ val arr=j.optJSONArray("strokes") ?: org.json.JSONArray()
+ for(i in 0 until arr.length()){val a=arr.getJSONArray(i);strokes.add(Triple(Offset(a.getDouble(0).toFloat(),a.getDouble(1).toFloat()),Offset(a.getDouble(2).toFloat(),a.getDouble(3).toFloat()),a.getBoolean(4)))}
+ val g=j.optJSONArray("groups");if(g!=null)for(i in 0 until g.length())groups.add(g.getInt(i))
+ if(groups.sum()!=strokes.size){groups.clear();repeat(strokes.size){groups.add(1)}}
+ bitmap=b;zoom=1f;pan=Offset.Zero;showProjects=false
+ }catch(e:Exception){status=t[5]}
+ }){Text(pm[2])}
+ TextButton(onClick={runCatching{j.put("name",name);writeProject(file,j);if(projectId==file.nameWithoutExtension)projectName=name;refresh++}.onFailure{status=extra[3]}}){Text(pm[3])}
+ }
+ Row{
+ TextButton(onClick={runCatching{
+ val id=java.util.UUID.randomUUID().toString()
+ val copy=org.json.JSONObject(j.toString())
+ java.io.File(dir,j.getString("image")).copyTo(java.io.File(dir,id+".png"))
+ copy.put("image",id+".png").put("name",name+" (2)")
+ writeProject(java.io.File(dir,id+".json"),copy);refresh++
+ }.onFailure{status=extra[3]}}){Text(pm[4])}
+ TextButton(onClick={deleteId=file.nameWithoutExtension}){Text(pm[5])}
+ }
+ }
+ }
+ }
+ }
+ deleteId?.let { id -> AlertDialog(onDismissRequest={deleteId=null},title={Text(pm[5]+"?")},confirmButton={TextButton(onClick={
+ val file=java.io.File(dir,id+".json")
+ runCatching{val j=readProject(file);check(file.delete());java.io.File(dir,j.getString("image")).delete();if(projectId==id)projectId=null;refresh++}.onFailure{status=extra[3]}
+ deleteId=null
+ }){Text(pm[5])}},dismissButton={TextButton(onClick={deleteId=null}){Text(pm[6])}}) }
+ OutlinedTextField(projectName,{projectName=it},label={Text(pm[1])},singleLine=true,modifier=Modifier.fillMaxWidth())
  Button(onClick={picker.launch("image/*")},modifier=Modifier.fillMaxWidth()){Text(t[1])}
  preview?.let { b ->
  Box(Modifier.fillMaxWidth().aspectRatio(b.width.toFloat()/b.height).clipToBounds().pointerInput(editing){if(!editing)detectTransformGestures { _,delta,scale,_ -> zoom=(zoom*scale).coerceIn(1f,6f);pan=if(zoom==1f)Offset.Zero else pan+delta }}) {
@@ -179,12 +238,13 @@ fun PatternEditor(lang: String) {
     busy=true
     status=try {withContext(Dispatchers.IO){
      val dir=java.io.File(context.filesDir,"projects").apply{mkdirs()}
-     val id=java.util.UUID.randomUUID().toString()
+     val id=projectId ?: java.util.UUID.randomUUID().toString()
      val image=java.io.File(dir,id+".png")
      image.outputStream().use{check(b.compress(Bitmap.CompressFormat.PNG,100,it))}
-     val json=org.json.JSONObject().put("image",image.name).put("width",width).put("height",height).put("a3",a3).put("threshold",threshold.toDouble()).put("exterior",exterior).put("thickness",thickness.toDouble()).put("skipBlank",skipBlank).put("strokes",org.json.JSONArray().apply{snapshot.forEach{(a,z,e)->put(org.json.JSONArray().put(a.x.toDouble()).put(a.y.toDouble()).put(z.x.toDouble()).put(z.y.toDouble()).put(e))}})
-     java.io.File(dir,id+".json").writeText(json.toString())
-    };more[6]}catch(e:Exception){extra[3]}finally{busy=false}
+     val json=org.json.JSONObject().put("name",projectName.ifBlank{id.take(8)}).put("outline",outline).put("lockRatio",lockRatio).put("groups",org.json.JSONArray(groups.toList())).put("image",image.name).put("width",width).put("height",height).put("a3",a3).put("threshold",threshold.toDouble()).put("exterior",exterior).put("thickness",thickness.toDouble()).put("skipBlank",skipBlank).put("strokes",org.json.JSONArray().apply{snapshot.forEach{(a,z,e)->put(org.json.JSONArray().put(a.x.toDouble()).put(a.y.toDouble()).put(z.x.toDouble()).put(z.y.toDouble()).put(e))}})
+     writeProject(java.io.File(dir,id+".json"),json)
+     id
+    }.let{projectId=it;refresh++};more[6]}catch(e:Exception){extra[3]}finally{busy=false}
    }
   }){Text(more[5])}
   Button(enabled=preview!=null&&!busy&&layout.count<=400,onClick={saver.launch("MakeIt.pdf")},modifier=Modifier.fillMaxWidth()){Text(extra[1])}
@@ -256,3 +316,19 @@ private val advancedLabels=mapOf(
 "lt" to listOf("Atšaukti","Pakartoti","Apskritimas","Ovalas","Pridėti","Išsaugoti projektą","Projektas išsaugotas"),
 "nb" to listOf("Angre","Gjør om","Sirkel","Oval","Legg til","Lagre prosjekt","Prosjekt lagret"),
 "da" to listOf("Fortryd","Gentag","Cirkel","Oval","Tilføj","Gem projekt","Projekt gemt"))
+
+private val projectLabels=mapOf(
+"en" to listOf("Projects","Name","Open","Rename","Duplicate","Delete","Cancel"),
+"fi" to listOf("Projektit","Nimi","Avaa","Nimeä uudelleen","Kopioi","Poista","Peruuta"),
+"et" to listOf("Projektid","Nimi","Ava","Nimeta ümber","Dubleeri","Kustuta","Loobu"),
+"ru" to listOf("Проекты","Название","Открыть","Переименовать","Дублировать","Удалить","Отмена"),
+"sv" to listOf("Projekt","Namn","Öppna","Byt namn","Duplicera","Ta bort","Avbryt"),
+"de" to listOf("Projekte","Name","Öffnen","Umbenennen","Duplizieren","Löschen","Abbrechen"),
+"fr" to listOf("Projets","Nom","Ouvrir","Renommer","Dupliquer","Supprimer","Annuler"),
+"pl" to listOf("Projekty","Nazwa","Otwórz","Zmień nazwę","Duplikuj","Usuń","Anuluj"),
+"es" to listOf("Proyectos","Nombre","Abrir","Renombrar","Duplicar","Eliminar","Cancelar"),
+"it" to listOf("Progetti","Nome","Apri","Rinomina","Duplica","Elimina","Annulla"),
+"lv" to listOf("Projekti","Nosaukums","Atvērt","Pārdēvēt","Dublēt","Dzēst","Atcelt"),
+"lt" to listOf("Projektai","Pavadinimas","Atverti","Pervadinti","Dubliuoti","Ištrinti","Atšaukti"),
+"nb" to listOf("Prosjekter","Navn","Åpne","Gi nytt navn","Dupliser","Slett","Avbryt"),
+"da" to listOf("Projekter","Navn","Åbn","Omdøb","Dupliker","Slet","Annuller"))
