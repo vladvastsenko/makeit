@@ -29,7 +29,7 @@ fun PatternEditor(lang: String) {
  var width by remember { mutableStateOf("110") }
  var height by remember { mutableStateOf("123") }
  var a3 by remember { mutableStateOf(false) }
- var outline by remember { mutableStateOf(false) }
+ var outline by remember { mutableStateOf(true) }
  var threshold by remember { mutableStateOf(80f) }
  var processed by remember { mutableStateOf<Bitmap?>(null) }
  var busy by remember { mutableStateOf(false) }
@@ -51,7 +51,7 @@ fun PatternEditor(lang: String) {
   if(dest!=null&&image!=null&&plan!=null){
    busy=true
    scope.launch {
-    status=try { withContext(Dispatchers.IO){context.contentResolver.openOutputStream(dest)?.use{exportPattern(image,plan,it)} ?: error("output")};extra[2] } catch(e:Exception){extra[3]} finally {busy=false}
+    status=try { withContext(Dispatchers.IO){context.contentResolver.openOutputStream(dest)?.use{exportPattern(if(outline) image else outlineBitmap(image,threshold.toInt()),plan,it)} ?: error("output")};extra[2] } catch(e:Exception){extra[3]} finally {busy=false}
    }
   }
  }
