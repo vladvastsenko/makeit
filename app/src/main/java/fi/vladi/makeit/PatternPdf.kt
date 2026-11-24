@@ -81,13 +81,19 @@ internal fun outlineBitmap(source:Bitmap, threshold:Int):Bitmap {
  val w=source.width; val h=source.height
  val pixels=IntArray(w*h)
  source.getPixels(pixels,0,w,0,0,w,h)
- val gray=IntArray(pixels.size){i -> val p=pixels[i]; if(Color.alpha(p)<128)255 else (Color.red(p)*299+Color.green(p)*587+Color.blue(p)*114)/1000 }
- val out=IntArray(pixels.size){Color.WHITE}
- for(y in 1 until h-1) for(x in 1 until w-1) {
+ val rgb=IntArray(pixels.size){i -> val p=pixels[i];val a=Color.alpha(p);fun blend(c:Int)=(c*a+255*(255-a))/255
+ Color.rgb(blend(Color.red(p)),blend(Color.green(p)),blend(Color.blue(p))) }
+ fun diff(a:Int,b:Int):Int=maxOf(kotlin.math.abs(Color.red(a)-Color.red(b)),kotlin.math.abs(Color.green(a)-Color.green(b)),kotlin.math.abs(Color.blue(a)-Color.blue(b)))
+ val strength=IntArray(pixels.size)
+ var peak=0
+ for(y in 1 until h-1)for(x in 1 until w-1){
  val i=y*w+x
- val edge=kotlin.math.abs(gray[i+1]-gray[i-1])+kotlin.math.abs(gray[i+w]-gray[i-w])
- if(edge>=threshold)out[i]=Color.BLACK
+ val e=maxOf(diff(rgb[i-1],rgb[i+1]),diff(rgb[i-w],rgb[i+w]),diff(rgb[i-w-1],rgb[i+w+1]),diff(rgb[i-w+1],rgb[i+w-1]))
+ strength[i]=e;peak=maxOf(peak,e)
  }
+ val out=IntArray(pixels.size){Color.WHITE}
+ val limit=minOf(threshold.coerceAtLeast(4),maxOf(4,peak/3))
+ if(peak>=4)for(i in strength.indices)if(strength[i]>=limit)out[i]=Color.BLACK
  return Bitmap.createBitmap(out,w,h,Bitmap.Config.ARGB_8888)
 }
 
