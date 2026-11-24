@@ -16,7 +16,7 @@ internal class SheetLayout(val width: Double,val height: Double,val a3:Boolean) 
  val rows=ceil((height-10).coerceAtLeast(1.0)/stepY).toInt()
  val count=columns*rows
 }
-internal fun exportPattern(bitmap:Bitmap, layout:SheetLayout, output:OutputStream, skipBlank:Boolean=true) {
+internal fun exportPattern(bitmap:Bitmap, layout:SheetLayout, output:OutputStream, skipBlank:Boolean=true, lineMm:Float=0.5f) {
  require(layout.count in 1..400)
  val pt=72f/25.4f
  val doc=PdfDocument()
@@ -24,6 +24,7 @@ internal fun exportPattern(bitmap:Bitmap, layout:SheetLayout, output:OutputStrea
  try {
  val pixels=IntArray(bitmap.width*bitmap.height)
  bitmap.getPixels(pixels,0,bitmap.width,0,0,bitmap.width,bitmap.height)
+ val vector=vectorLines(pixels,bitmap.width,bitmap.height,layout.width.toFloat(),layout.height.toFloat())
  val tiles=(0 until layout.rows).flatMap { row -> (0 until layout.columns).map { col -> row to col } }.filter { (row,col) ->
  if(!skipBlank) true else {
  val left=(col*layout.stepX/layout.width*bitmap.width).toInt().coerceIn(0,bitmap.width)
@@ -44,7 +45,13 @@ internal fun exportPattern(bitmap:Bitmap, layout:SheetLayout, output:OutputStrea
  c.clipRect(10f,10f,10f+layout.usableW,10f+layout.usableH)
  val x=10f-col*layout.stepX
  val y=10f-row*layout.stepY
- c.drawBitmap(bitmap,null,RectF(x,y,x+layout.width.toFloat(),y+layout.height.toFloat()),paint)
+ c.translate(x,y)
+ paint.color=Color.BLACK
+ paint.style=Paint.Style.STROKE
+ paint.strokeWidth=lineMm
+ paint.strokeCap=Paint.Cap.ROUND
+ paint.strokeJoin=Paint.Join.ROUND
+ c.drawPath(vector,paint)
  c.restore()
  c.save()
  c.scale(pt,pt)
@@ -108,4 +115,23 @@ internal fun thicken(source:Bitmap,mm:Float,widthMm:Double,heightMm:Double):Bitm
  for(y in 0 until h)for(x in 0 until w)if(p[y*w+x]==Color.BLACK)
  for(dy in -ry..ry)for(dx in -rx..rx)if(x+dx in 0 until w&&y+dy in 0 until h)out[(y+dy)*w+x+dx]=Color.BLACK
  return Bitmap.createBitmap(out,w,h,Bitmap.Config.ARGB_8888)
+}
+
+private fun vectorLines(p:IntArray,w:Int,h:Int,wm:Float,hm:Float):Path {
+ val path=Path()
+ val sx=wm/w;val sy=hm/h
+ // Trace connected horizontal runs, joining adjacent pixels vertically and diagonally.
+ for(y in 0 until h)for(x in 0 until w){
+ val i=y*w+x
+ if(p[i]!=Color.BLACK)continue
+ val a=(x+0.5f)*sx;val b=(y+0.5f)*sy
+ var linked=false
+ if(x+1<w&&p[i+1]==Color.BLACK){path.moveTo(a,b);path.lineTo(a+sx,b);linked=true}
+ if(y+1<h)for(dx in -1..1)if(x+dx in 0 until w&&p[i+w+dx]==Color.BLACK){
+ if(dx!=0&&(p[i+dx]==Color.BLACK||p[i+w]==Color.BLACK))continue
+ path.moveTo(a,b);path.lineTo(a+dx*sx,b+sy);linked=true
+ }
+ if(!linked){path.moveTo(a,b);path.lineTo(a+0.001f,b)}
+ }
+ return path
 }
