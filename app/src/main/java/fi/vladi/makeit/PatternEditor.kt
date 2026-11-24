@@ -31,7 +31,7 @@ import kotlinx.coroutines.withContext
 import kotlin.math.ceil
 
 @Composable
-fun PatternEditor(lang: String, openProjects:Boolean=false) {
+fun PatternEditor(lang: String, openProjects:Boolean=false, selectedProject:String?=null, onOpenProject:(String)->Unit={}) {
  val t = editorLabels[lang] ?: editorLabels.getValue("en")
  val context = LocalContext.current
  var uri by remember { mutableStateOf<Uri?>(null) }
@@ -113,6 +113,24 @@ fun PatternEditor(lang: String, openProjects:Boolean=false) {
  DisposableEffect(Unit){
   onDispose{if(restored&&bitmap!=null)runCatching{writeProject(draftFile,snapshot())}}
  }
+ LaunchedEffect(restored,selectedProject){
+ if(restored&&selectedProject!=null&&!openProjects){
+ val file=java.io.File(dir,selectedProject+".json")
+ val j=runCatching{readProject(file)}.getOrNull()
+ if(j!=null){ try{
+ val b=BitmapFactory.decodeFile(java.io.File(dir,j.getString("image")).path) ?: error("image")
+ projectId=file.nameWithoutExtension;projectName=j.optString("name",file.nameWithoutExtension)
+ width=j.getString("width");height=j.getString("height");a3=j.optBoolean("a3");threshold=j.optDouble("threshold",80.0).toFloat();exterior=j.optBoolean("exterior");thickness=j.optDouble("thickness",0.5).toFloat();skipBlank=j.optBoolean("skipBlank",true);outline=j.optBoolean("outline",true);lockRatio=j.optBoolean("lockRatio",true)
+ strokes.clear();groups.clear();redo.clear()
+ val arr=j.optJSONArray("strokes") ?: org.json.JSONArray()
+ for(i in 0 until arr.length()){val a=arr.getJSONArray(i);strokes.add(Triple(Offset(a.getDouble(0).toFloat(),a.getDouble(1).toFloat()),Offset(a.getDouble(2).toFloat(),a.getDouble(3).toFloat()),a.getBoolean(4)))}
+ val g=j.optJSONArray("groups");if(g!=null)for(i in 0 until g.length())groups.add(g.getInt(i))
+ if(groups.sum()!=strokes.size){groups.clear();repeat(strokes.size){groups.add(1)}}
+ bitmap=b;zoom=1f;pan=Offset.Zero;showProjects=false
+ }catch(e:Exception){status=t[5]}
+}
+ }
+ }
  LaunchedEffect(bitmap,outline,threshold,exterior) {
   processed=null
   val b=bitmap
@@ -176,6 +194,19 @@ fun PatternEditor(lang: String, openProjects:Boolean=false) {
  }
  }
  pendingReplace?.let{action->AlertDialog(onDismissRequest={pendingReplace=null},title={Text(replaceLabels[lang] ?: replaceLabels.getValue("en"))},text={Column{Text(more[5]+" · "+pm[6]);Button(enabled=!busy&&layout!=null,onClick={saveCurrent{pendingReplace=null;action()}}){Text(more[5])}}},confirmButton={TextButton(enabled=!busy,onClick={pendingReplace=null;action()}){Text(pm[2])}},dismissButton={TextButton(onClick={pendingReplace=null}){Text(pm[6])}})}
+ if(openProjects){
+ Text(pm[0],style=MaterialTheme.typography.headlineMedium)
+ for(file in projects){
+ val j=remember(file){runCatching{readProject(file)}.getOrNull()} ?: continue
+ Card(onClick={onOpenProject(file.nameWithoutExtension)},modifier=Modifier.fillMaxWidth()){
+ Column(Modifier.padding(18.dp)){
+ Text(j.optString("name",file.nameWithoutExtension),style=MaterialTheme.typography.titleLarge)
+ Text(j.optString("width")+" × "+j.optString("height")+" cm")
+ }
+ }
+ }
+ return
+ }
  Text(t[0],style=MaterialTheme.typography.headlineMedium)
  OutlinedButton(onClick={showProjects=!showProjects},modifier=Modifier.fillMaxWidth()){Text(pm[0])}
  if(showProjects){
