@@ -157,7 +157,25 @@ fun PatternEditor(lang: String, openProjects:Boolean=false) {
   }
   failed=bitmap==null
  }
- pendingReplace?.let{action->AlertDialog(onDismissRequest={pendingReplace=null},title={Text(replaceLabels[lang] ?: replaceLabels.getValue("en"))},text={Text(more[5]+" · "+pm[6])},confirmButton={TextButton(onClick={pendingReplace=null;action()}){Text(pm[2])}},dismissButton={TextButton(onClick={pendingReplace=null}){Text(pm[6])}})}
+ fun saveCurrent(after:()->Unit){
+ val b=bitmap ?: return
+ if(layout==null||busy)return
+ val id=projectId ?: java.util.UUID.randomUUID().toString()
+ val json=snapshot().put("name",projectName.ifBlank{id.take(8)}).put("image",id+".png")
+ busy=true
+ scope.launch{
+ try{
+ withContext(Dispatchers.IO){
+ val atomic=android.util.AtomicFile(java.io.File(dir,id+".png"))
+ val out=atomic.startWrite()
+ try{check(b.compress(Bitmap.CompressFormat.PNG,100,out));atomic.finishWrite(out)}catch(e:Exception){atomic.failWrite(out);throw e}
+ writeProject(java.io.File(dir,id+".json"),json)
+ }
+ projectId=id;refresh++;status=more[6];busy=false;after()
+ }catch(e:Exception){status=extra[3]}finally{busy=false}
+ }
+ }
+ pendingReplace?.let{action->AlertDialog(onDismissRequest={pendingReplace=null},title={Text(replaceLabels[lang] ?: replaceLabels.getValue("en"))},text={Column{Text(more[5]+" · "+pm[6]);Button(enabled=!busy&&layout!=null,onClick={saveCurrent{pendingReplace=null;action()}}){Text(more[5])}}},confirmButton={TextButton(enabled=!busy,onClick={pendingReplace=null;action()}){Text(pm[2])}},dismissButton={TextButton(onClick={pendingReplace=null}){Text(pm[6])}})}
  Text(t[0],style=MaterialTheme.typography.headlineMedium)
  OutlinedButton(onClick={showProjects=!showProjects},modifier=Modifier.fillMaxWidth()){Text(pm[0])}
  if(showProjects){
@@ -279,22 +297,7 @@ fun PatternEditor(lang: String, openProjects:Boolean=false) {
     }
    }
   }
-  Button(enabled=bitmap!=null&&!busy,onClick={
-   val b=bitmap ?: return@Button
-   val snapshot=strokes.toList()
-   scope.launch {
-    busy=true
-    status=try {withContext(Dispatchers.IO){
-     val dir=java.io.File(context.filesDir,"projects").apply{mkdirs()}
-     val id=projectId ?: java.util.UUID.randomUUID().toString()
-     val image=java.io.File(dir,id+".png")
-     image.outputStream().use{check(b.compress(Bitmap.CompressFormat.PNG,100,it))}
-     val json=org.json.JSONObject().put("name",projectName.ifBlank{id.take(8)}).put("outline",outline).put("lockRatio",lockRatio).put("groups",org.json.JSONArray(groups.toList())).put("image",image.name).put("width",width).put("height",height).put("a3",a3).put("threshold",threshold.toDouble()).put("exterior",exterior).put("thickness",thickness.toDouble()).put("skipBlank",skipBlank).put("strokes",org.json.JSONArray().apply{snapshot.forEach{(a,z,e)->put(org.json.JSONArray().put(a.x.toDouble()).put(a.y.toDouble()).put(z.x.toDouble()).put(z.y.toDouble()).put(e))}})
-     writeProject(java.io.File(dir,id+".json"),json)
-     id
-    }.let{projectId=it;refresh++};more[6]}catch(e:Exception){extra[3]}finally{busy=false}
-   }
-  }){Text(more[5])}
+  Button(enabled=bitmap!=null&&!busy,onClick={saveCurrent{}},modifier=Modifier.fillMaxWidth()){Text(more[5])}
   Button(enabled=preview!=null&&!busy&&layout.count<=400,onClick={saver.launch("MakeIt.pdf")},modifier=Modifier.fillMaxWidth()){Text(extra[1])}
  }
  if(busy) LinearProgressIndicator(Modifier.fillMaxWidth())
