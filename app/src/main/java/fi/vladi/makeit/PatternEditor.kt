@@ -6,6 +6,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.Offset
@@ -43,6 +46,11 @@ fun PatternEditor(lang: String) {
  var editing by remember { mutableStateOf(false) }
  var erase by remember { mutableStateOf(false) }
  val strokes=remember { mutableStateListOf<Triple<Offset,Offset,Boolean>>() }
+ val redo=remember { mutableStateListOf<Triple<Offset,Offset,Boolean>>() }
+ var zoom by remember { mutableStateOf(1f) }
+ var pan by remember { mutableStateOf(Offset.Zero) }
+ var holeMode by remember { mutableStateOf(0) }
+ val more=advancedLabels[lang] ?: advancedLabels.getValue("en")
  val options=printLabels[lang] ?: printLabels.getValue("en")
  var threshold by remember { mutableStateOf(80f) }
  var processed by remember { mutableStateOf<Bitmap?>(null) }
@@ -72,7 +80,7 @@ fun PatternEditor(lang: String) {
  val canvas=android.graphics.Canvas(edited)
  val pen=android.graphics.Paint().apply { strokeWidth=3f;strokeCap=android.graphics.Paint.Cap.ROUND }
  for((a,b,e) in strokes.toList()){pen.color=if(e)android.graphics.Color.WHITE else android.graphics.Color.BLACK;canvas.drawLine(a.x*edited.width,a.y*edited.height,b.x*edited.width,b.y*edited.height,pen)}
- exportPattern(thicken(edited,thickness,plan.width,plan.height),plan,it,skipBlank)} ?: error("output")};extra[2] } catch(e:Exception){extra[3]} finally {busy=false}
+ exportPattern(edited,plan,it,skipBlank,thickness)} ?: error("output")};extra[2] } catch(e:Exception){extra[3]} finally {busy=false}
    }
   }
  }
@@ -95,15 +103,43 @@ fun PatternEditor(lang: String) {
  Text(t[0],style=MaterialTheme.typography.headlineMedium)
  Button(onClick={picker.launch("image/*")},modifier=Modifier.fillMaxWidth()){Text(t[1])}
  preview?.let { b ->
- Box(Modifier.fillMaxWidth().aspectRatio(b.width.toFloat()/b.height)) {
+ Box(Modifier.fillMaxWidth().aspectRatio(b.width.toFloat()/b.height).clipToBounds().pointerInput(editing){if(!editing)detectTransformGestures { _,delta,scale,_ -> zoom=(zoom*scale).coerceIn(1f,6f);pan=if(zoom==1f)Offset.Zero else pan+delta }}) {
+ Box(Modifier.matchParentSize().graphicsLayer { scaleX=zoom;scaleY=zoom;translationX=pan.x;translationY=pan.y }) {
  Image(b.asImageBitmap(),contentDescription=t[1],modifier=Modifier.matchParentSize(),contentScale=ContentScale.FillBounds)
  Canvas(Modifier.matchParentSize().pointerInput(editing,erase,b){if(editing)detectDragGestures { change,drag ->
  val end=change.position
  val start=end-drag
  strokes.add(Triple(Offset((start.x/size.width).coerceIn(0f,1f),(start.y/size.height).coerceIn(0f,1f)),Offset((end.x/size.width).coerceIn(0f,1f),(end.y/size.height).coerceIn(0f,1f)),erase))
+ redo.clear()
  change.consume()
  }}) { for((a,z,e) in strokes)drawLine(if(e)Color.White else Color.Black,Offset(a.x*size.width,a.y*size.height),Offset(z.x*size.width,z.y*size.height),strokeWidth=3f) }
  }
+ }
+ }
+ Row(horizontalArrangement=Arrangement.spacedBy(4.dp)){
+ OutlinedButton(enabled=strokes.isNotEmpty(),onClick={redo.add(strokes.removeAt(strokes.lastIndex))}){Text(more[0])}
+ OutlinedButton(enabled=redo.isNotEmpty(),onClick={strokes.add(redo.removeAt(redo.lastIndex))}){Text(more[1])}
+ }
+ Row(horizontalArrangement=Arrangement.spacedBy(4.dp)){
+ OutlinedButton(onClick={holeMode=1}){Text(more[2])}
+ OutlinedButton(onClick={holeMode=2}){Text(more[3])}
+ }
+ if(holeMode!=0){
+ var cx by remember { mutableStateOf(0.5f) }
+ var cy by remember { mutableStateOf(0.5f) }
+ var radius by remember { mutableStateOf(0.1f) }
+ Text("X");Slider(cx,{cx=it},valueRange=0.1f..0.9f)
+ Text("Y");Slider(cy,{cy=it},valueRange=0.1f..0.9f)
+ Text("Ø");Slider(radius,{radius=it},valueRange=0.01f..0.2f)
+ Button(onClick={
+ val b=bitmap
+ val aspect=if(w!=null&&h!=null&&h>0) (w/h).toFloat() else if(b!=null)b.width.toFloat()/b.height else 1f
+ for(i in 0 until 96){
+ fun point(j:Int):Offset{val angle=j*2*Math.PI/96;return Offset((cx+radius*kotlin.math.cos(angle).toFloat()).coerceIn(0f,1f),(cy+radius*aspect*(if(holeMode==2)0.6f else 1f)*kotlin.math.sin(angle).toFloat()).coerceIn(0f,1f))}
+ strokes.add(Triple(point(i),point(i+1),false))
+ }
+ redo.clear();holeMode=0
+ }){Text(more[4])}
  }
  Row { Checkbox(editing,{editing=it});Text(options[4],Modifier.padding(top=12.dp)) }
  if(editing){ Row { Checkbox(erase,{erase=it});Text(options[5],Modifier.padding(top=12.dp)) };OutlinedButton(onClick={strokes.clear()}){Text(options[6])} }
@@ -121,6 +157,27 @@ fun PatternEditor(lang: String) {
  if(layout!=null){
   Text(t[4]+": "+layout.count+" ("+layout.columns+" × "+layout.rows+") + 1",style=MaterialTheme.typography.titleLarge)
   Text("10 mm / 10 mm · 100%")
+  if(layout.count<=400) Canvas(Modifier.fillMaxWidth().height(180.dp)){
+   val cell=minOf(size.width/layout.columns,size.height/layout.rows)
+   for(row in 0 until layout.rows)for(col in 0 until layout.columns){
+    drawRect(Color(0xFFD8E7DC),Offset(col*cell,row*cell),androidx.compose.ui.geometry.Size(cell-1,cell-1))
+   }
+  }
+  Button(enabled=bitmap!=null&&!busy,onClick={
+   val b=bitmap ?: return@Button
+   val snapshot=strokes.toList()
+   scope.launch {
+    busy=true
+    status=try {withContext(Dispatchers.IO){
+     val dir=java.io.File(context.filesDir,"projects").apply{mkdirs()}
+     val id=java.util.UUID.randomUUID().toString()
+     val image=java.io.File(dir,id+".png")
+     image.outputStream().use{check(b.compress(Bitmap.CompressFormat.PNG,100,it))}
+     val json=org.json.JSONObject().put("image",image.name).put("width",width).put("height",height).put("a3",a3).put("threshold",threshold.toDouble()).put("exterior",exterior).put("thickness",thickness.toDouble()).put("skipBlank",skipBlank).put("strokes",org.json.JSONArray().apply{snapshot.forEach{(a,z,e)->put(org.json.JSONArray().put(a.x.toDouble()).put(a.y.toDouble()).put(z.x.toDouble()).put(z.y.toDouble()).put(e))}})
+     java.io.File(dir,id+".json").writeText(json.toString())
+    };more[6]}catch(e:Exception){extra[3]}finally{busy=false}
+   }
+  }){Text(more[5])}
   Button(enabled=preview!=null&&!busy&&layout.count<=400,onClick={saver.launch("MakeIt.pdf")},modifier=Modifier.fillMaxWidth()){Text(extra[1])}
  }
  if(busy) LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -174,3 +231,19 @@ private val printLabels=mapOf(
 "lt" to listOf("Tik išorinis kontūras","Praleisti tuščius lapus","Linijos storis","Išlaikyti proporcijas","Redaguoti linijas","Trinti","Išvalyti pakeitimus"),
 "nb" to listOf("Bare ytre kontur","Hopp over tomme ark","Linjetykkelse","Behold proporsjoner","Rediger linjer","Visk ut","Fjern endringer"),
 "da" to listOf("Kun ydre kontur","Spring tomme ark over","Linjetykkelse","Bevar proportioner","Rediger linjer","Visk ud","Ryd ændringer"))
+
+private val advancedLabels=mapOf(
+"en" to listOf("Undo","Redo","Circle","Oval","Add","Save project","Project saved"),
+"fi" to listOf("Kumoa","Tee uudelleen","Ympyrä","Soikio","Lisää","Tallenna projekti","Projekti tallennettu"),
+"et" to listOf("Võta tagasi","Tee uuesti","Ring","Ovaal","Lisa","Salvesta projekt","Projekt salvestatud"),
+"ru" to listOf("Отменить","Повторить","Круг","Овал","Добавить","Сохранить проект","Проект сохранён"),
+"sv" to listOf("Ångra","Gör om","Cirkel","Oval","Lägg till","Spara projekt","Projekt sparat"),
+"de" to listOf("Rückgängig","Wiederholen","Kreis","Oval","Hinzufügen","Projekt speichern","Projekt gespeichert"),
+"fr" to listOf("Annuler","Rétablir","Cercle","Ovale","Ajouter","Enregistrer le projet","Projet enregistré"),
+"pl" to listOf("Cofnij","Ponów","Koło","Owal","Dodaj","Zapisz projekt","Projekt zapisany"),
+"es" to listOf("Deshacer","Rehacer","Círculo","Óvalo","Añadir","Guardar proyecto","Proyecto guardado"),
+"it" to listOf("Annulla","Ripeti","Cerchio","Ovale","Aggiungi","Salva progetto","Progetto salvato"),
+"lv" to listOf("Atsaukt","Atjaunot","Aplis","Ovāls","Pievienot","Saglabāt projektu","Projekts saglabāts"),
+"lt" to listOf("Atšaukti","Pakartoti","Apskritimas","Ovalas","Pridėti","Išsaugoti projektą","Projektas išsaugotas"),
+"nb" to listOf("Angre","Gjør om","Sirkel","Oval","Legg til","Lagre prosjekt","Prosjekt lagret"),
+"da" to listOf("Fortryd","Gentag","Cirkel","Oval","Tilføj","Gem projekt","Projekt gemt"))
