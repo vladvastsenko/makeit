@@ -46,7 +46,9 @@ fun PatternEditor(lang: String) {
  var editing by remember { mutableStateOf(false) }
  var erase by remember { mutableStateOf(false) }
  val strokes=remember { mutableStateListOf<Triple<Offset,Offset,Boolean>>() }
- val redo=remember { mutableStateListOf<Triple<Offset,Offset,Boolean>>() }
+ val redo=remember { mutableStateListOf<List<Triple<Offset,Offset,Boolean>>>() }
+ val groups=remember { mutableStateListOf<Int>() }
+ var gestureStart by remember { mutableIntStateOf(0) }
  var zoom by remember { mutableStateOf(1f) }
  var pan by remember { mutableStateOf(Offset.Zero) }
  var holeMode by remember { mutableStateOf(0) }
@@ -64,7 +66,7 @@ fun PatternEditor(lang: String) {
   if(outline && b!=null) processed=withContext(Dispatchers.Default){outlineBitmap(b,threshold.toInt()).let { if(exterior)outerOnly(it) else it }}
  }
  val preview=if(outline)processed else bitmap
- LaunchedEffect(uri){strokes.clear()}
+ LaunchedEffect(uri){strokes.clear();groups.clear();redo.clear()}
  LaunchedEffect(bitmap){bitmap?.let { if(lockRatio) height=((width.replace(',','.').toDoubleOrNull() ?: 110.0)*it.height/it.width).toString() }}
  val w=width.replace(',','.').toDoubleOrNull()
  val h=height.replace(',','.').toDoubleOrNull()
@@ -106,7 +108,7 @@ fun PatternEditor(lang: String) {
  Box(Modifier.fillMaxWidth().aspectRatio(b.width.toFloat()/b.height).clipToBounds().pointerInput(editing){if(!editing)detectTransformGestures { _,delta,scale,_ -> zoom=(zoom*scale).coerceIn(1f,6f);pan=if(zoom==1f)Offset.Zero else pan+delta }}) {
  Box(Modifier.matchParentSize().graphicsLayer { scaleX=zoom;scaleY=zoom;translationX=pan.x;translationY=pan.y }) {
  Image(b.asImageBitmap(),contentDescription=t[1],modifier=Modifier.matchParentSize(),contentScale=ContentScale.FillBounds)
- Canvas(Modifier.matchParentSize().pointerInput(editing,erase,b){if(editing)detectDragGestures { change,drag ->
+ Canvas(Modifier.matchParentSize().pointerInput(editing,erase,b){if(editing)detectDragGestures(onDragStart={gestureStart=strokes.size},onDragEnd={if(strokes.size>gestureStart)groups.add(strokes.size-gestureStart)},onDragCancel={if(strokes.size>gestureStart)groups.add(strokes.size-gestureStart)}) { change,drag ->
  val end=change.position
  val start=end-drag
  strokes.add(Triple(Offset((start.x/size.width).coerceIn(0f,1f),(start.y/size.height).coerceIn(0f,1f)),Offset((end.x/size.width).coerceIn(0f,1f),(end.y/size.height).coerceIn(0f,1f)),erase))
@@ -117,8 +119,8 @@ fun PatternEditor(lang: String) {
  }
  }
  Row(horizontalArrangement=Arrangement.spacedBy(4.dp)){
- OutlinedButton(enabled=strokes.isNotEmpty(),onClick={redo.add(strokes.removeAt(strokes.lastIndex))}){Text(more[0])}
- OutlinedButton(enabled=redo.isNotEmpty(),onClick={strokes.add(redo.removeAt(redo.lastIndex))}){Text(more[1])}
+ OutlinedButton(enabled=strokes.isNotEmpty(),onClick={val n=if(groups.isEmpty())1 else groups.removeAt(groups.lastIndex);redo.add(strokes.takeLast(n));repeat(n){strokes.removeAt(strokes.lastIndex)}}){Text(more[0])}
+ OutlinedButton(enabled=redo.isNotEmpty(),onClick={val group=redo.removeAt(redo.lastIndex);strokes.addAll(group);groups.add(group.size)}){Text(more[1])}
  }
  Row(horizontalArrangement=Arrangement.spacedBy(4.dp)){
  OutlinedButton(onClick={holeMode=1}){Text(more[2])}
@@ -127,22 +129,26 @@ fun PatternEditor(lang: String) {
  if(holeMode!=0){
  var cx by remember { mutableStateOf(0.5f) }
  var cy by remember { mutableStateOf(0.5f) }
- var radius by remember { mutableStateOf(0.1f) }
+ var holeW by remember { mutableStateOf("20") }
+ var holeH by remember { mutableStateOf("15") }
  Text("X");Slider(cx,{cx=it},valueRange=0.1f..0.9f)
  Text("Y");Slider(cy,{cy=it},valueRange=0.1f..0.9f)
- Text("Ø");Slider(radius,{radius=it},valueRange=0.01f..0.2f)
- Button(onClick={
- val b=bitmap
- val aspect=if(w!=null&&h!=null&&h>0) (w/h).toFloat() else if(b!=null)b.width.toFloat()/b.height else 1f
+ OutlinedTextField(holeW,{holeW=it},label={Text(t[2]+" (cm)")},singleLine=true)
+ if(holeMode==2)OutlinedTextField(holeH,{holeH=it},label={Text(t[3]+" (cm)")},singleLine=true)
+ val dw=holeW.replace(',','.').toDoubleOrNull()
+ val dh=if(holeMode==1)dw else holeH.replace(',','.').toDoubleOrNull()
+ val rx=if(dw!=null&&w!=null&&w>0) (dw/w/2).toFloat() else 0f
+ val ry=if(dh!=null&&h!=null&&h>0) (dh/h/2).toFloat() else 0f
+ Button(enabled=rx>0&&ry>0&&rx<=minOf(cx,1-cx)&&ry<=minOf(cy,1-cy),onClick={
  for(i in 0 until 96){
- fun point(j:Int):Offset{val angle=j*2*Math.PI/96;return Offset((cx+radius*kotlin.math.cos(angle).toFloat()).coerceIn(0f,1f),(cy+radius*aspect*(if(holeMode==2)0.6f else 1f)*kotlin.math.sin(angle).toFloat()).coerceIn(0f,1f))}
+ fun point(j:Int):Offset{val angle=j*2*Math.PI/96;return Offset((cx+rx*kotlin.math.cos(angle).toFloat()).coerceIn(0f,1f),(cy+ry*kotlin.math.sin(angle).toFloat()).coerceIn(0f,1f))}
  strokes.add(Triple(point(i),point(i+1),false))
  }
- redo.clear();holeMode=0
+ groups.add(96);redo.clear();holeMode=0
  }){Text(more[4])}
  }
  Row { Checkbox(editing,{editing=it});Text(options[4],Modifier.padding(top=12.dp)) }
- if(editing){ Row { Checkbox(erase,{erase=it});Text(options[5],Modifier.padding(top=12.dp)) };OutlinedButton(onClick={strokes.clear()}){Text(options[6])} }
+ if(editing){ Row { Checkbox(erase,{erase=it});Text(options[5],Modifier.padding(top=12.dp)) };OutlinedButton(onClick={strokes.clear();groups.clear();redo.clear()}){Text(options[6])} }
  Row { Checkbox(exterior,{exterior=it;outline=true});Text(options[0],Modifier.padding(top=12.dp)) }
  Row { Checkbox(skipBlank,{skipBlank=it});Text(options[1],Modifier.padding(top=12.dp)) }
  Text(options[2]+" · "+String.format(java.util.Locale.ROOT,"%.1f",thickness)+" mm")
@@ -157,11 +163,14 @@ fun PatternEditor(lang: String) {
  if(layout!=null){
   Text(t[4]+": "+layout.count+" ("+layout.columns+" × "+layout.rows+") + 1",style=MaterialTheme.typography.titleLarge)
   Text("10 mm / 10 mm · 100%")
-  if(layout.count<=400) Canvas(Modifier.fillMaxWidth().height(180.dp)){
-   val cell=minOf(size.width/layout.columns,size.height/layout.rows)
+  if(layout.count<=400) Box(Modifier.fillMaxWidth().height(180.dp)){
+   preview?.let { Image(it.asImageBitmap(),null,Modifier.matchParentSize(),contentScale=ContentScale.FillBounds) }
+   Canvas(Modifier.matchParentSize()){
+   val cw=size.width/layout.columns;val ch=size.height/layout.rows
    for(row in 0 until layout.rows)for(col in 0 until layout.columns){
-    drawRect(Color(0xFFD8E7DC),Offset(col*cell,row*cell),androidx.compose.ui.geometry.Size(cell-1,cell-1))
+    drawRect(Color(0xFF668A7B),Offset(col*cw,row*ch),androidx.compose.ui.geometry.Size(cw,ch),style=androidx.compose.ui.graphics.drawscope.Stroke(1f))
    }
+  }
   }
   Button(enabled=bitmap!=null&&!busy,onClick={
    val b=bitmap ?: return@Button
