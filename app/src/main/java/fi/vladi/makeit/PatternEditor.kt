@@ -139,6 +139,8 @@ fun PatternEditor(lang: String, openProjects:Boolean=false) {
    }
   }
  }
+ var pendingReplace by remember { mutableStateOf<(() -> Unit)?>(null) }
+ fun replaceDraft(action:()->Unit){if(bitmap!=null)pendingReplace=action else action()}
  val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { if(it != null) {projectId=null;projectName="";uri=it} }
  LaunchedEffect(uri) {
   val selected = uri ?: return@LaunchedEffect
@@ -155,6 +157,7 @@ fun PatternEditor(lang: String, openProjects:Boolean=false) {
   }
   failed=bitmap==null
  }
+ pendingReplace?.let{action->AlertDialog(onDismissRequest={pendingReplace=null},title={Text(replaceLabels[lang] ?: replaceLabels.getValue("en"))},text={Text(more[5]+" · "+pm[6])},confirmButton={TextButton(onClick={pendingReplace=null;action()}){Text(pm[2])}},dismissButton={TextButton(onClick={pendingReplace=null}){Text(pm[6])}})}
  Text(t[0],style=MaterialTheme.typography.headlineMedium)
  OutlinedButton(onClick={showProjects=!showProjects},modifier=Modifier.fillMaxWidth()){Text(pm[0])}
  if(showProjects){
@@ -166,7 +169,7 @@ fun PatternEditor(lang: String, openProjects:Boolean=false) {
  OutlinedTextField(name,{name=it},singleLine=true,label={Text(pm[1])})
  Text(j.optString("width")+" × "+j.optString("height")+" cm")
  Row{
- TextButton(onClick={
+ TextButton(onClick={replaceDraft{
  try{
  val b=BitmapFactory.decodeFile(java.io.File(dir,j.getString("image")).path) ?: error("image")
  projectId=file.nameWithoutExtension;projectName=name
@@ -178,7 +181,7 @@ fun PatternEditor(lang: String, openProjects:Boolean=false) {
  if(groups.sum()!=strokes.size){groups.clear();repeat(strokes.size){groups.add(1)}}
  bitmap=b;zoom=1f;pan=Offset.Zero;showProjects=false
  }catch(e:Exception){status=t[5]}
- }){Text(pm[2])}
+ }}){Text(pm[2])}
  TextButton(onClick={runCatching{j.put("name",name);writeProject(file,j);if(projectId==file.nameWithoutExtension)projectName=name;refresh++}.onFailure{status=extra[3]}}){Text(pm[3])}
  }
  Row{
@@ -201,7 +204,7 @@ fun PatternEditor(lang: String, openProjects:Boolean=false) {
  deleteId=null
  }){Text(pm[5])}},dismissButton={TextButton(onClick={deleteId=null}){Text(pm[6])}}) }
  OutlinedTextField(projectName,{projectName=it},label={Text(pm[1])},singleLine=true,modifier=Modifier.fillMaxWidth())
- Button(onClick={picker.launch("image/*")},modifier=Modifier.fillMaxWidth()){Text(t[1])}
+ Button(onClick={replaceDraft{picker.launch("image/*")}},modifier=Modifier.fillMaxWidth()){Text(t[1])}
  preview?.let { b ->
  Box(Modifier.fillMaxWidth().aspectRatio(b.width.toFloat()/b.height).clipToBounds().pointerInput(editing){if(!editing)detectTransformGestures { _,delta,scale,_ -> zoom=(zoom*scale).coerceIn(1f,6f);pan=if(zoom==1f)Offset.Zero else pan+delta }}) {
  Box(Modifier.matchParentSize().graphicsLayer { scaleX=zoom;scaleY=zoom;translationX=pan.x;translationY=pan.y }) {
@@ -377,3 +380,5 @@ private val projectLabels=mapOf(
 "lt" to listOf("Projektai","Pavadinimas","Atverti","Pervadinti","Dubliuoti","Ištrinti","Atšaukti"),
 "nb" to listOf("Prosjekter","Navn","Åpne","Gi nytt navn","Dupliser","Slett","Avbryt"),
 "da" to listOf("Projekter","Navn","Åbn","Omdøb","Dupliker","Slet","Annuller"))
+
+private val replaceLabels=mapOf("en" to "Replace current draft?","fi" to "Korvataanko nykyinen luonnos?","et" to "Asendada praegune mustand?","ru" to "Заменить текущий черновик?","sv" to "Ersätta aktuellt utkast?","de" to "Aktuellen Entwurf ersetzen?","fr" to "Remplacer le brouillon actuel ?","pl" to "Zastąpić bieżący szkic?","es" to "¿Reemplazar el borrador actual?","it" to "Sostituire la bozza attuale?","lv" to "Aizstāt pašreizējo melnrakstu?","lt" to "Pakeisti dabartinį juodraštį?","nb" to "Erstatte gjeldende utkast?","da" to "Erstat den aktuelle kladde?")
