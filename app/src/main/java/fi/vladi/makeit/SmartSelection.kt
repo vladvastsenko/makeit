@@ -20,7 +20,11 @@ internal fun smartSelection(source:Bitmap,left:Float,top:Float,right:Float,botto
  val x=(left*w).toInt().coerceIn(1,w-3);val y=(top*h).toInt().coerceIn(1,h-3)
  val x2=(right*w).toInt().coerceIn(x+1,w-1);val y2=(bottom*h).toInt().coerceIn(y+1,h-1)
  Imgproc.grabCut(rgb,mask,Rect(x,y,x2-x,y2-y),bg,fg,5,Imgproc.GC_INIT_WITH_RECT)
- Core.bitwise_and(mask,Scalar(1.0),binary)
+ val bits=ByteArray(w*h)
+ mask.get(0,0,bits)
+ for(i in bits.indices)bits[i]=(bits[i].toInt() and 1).toByte()
+ binary.create(h,w,CvType.CV_8UC1)
+ binary.put(0,0,bits)
  val count=Imgproc.connectedComponentsWithStats(binary,labels,stats,centers)
  if(count<=1)return isolatePattern(source,left,top,right,bottom,tolerance)
  var best=1
