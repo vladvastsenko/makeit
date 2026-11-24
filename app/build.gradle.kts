@@ -21,3 +21,10 @@ dependencies {
  implementation("androidx.compose.material3:material3")
  implementation("androidx.compose.ui:ui")
 }
+val prepareWelcomeArt by tasks.registering(Copy::class) {
+ from(rootProject.file("5eff8f863dbd2a2a7ccc9e0c0632665fc37063aba20fcf9f844a0dce10047be3.png"))
+ into(layout.buildDirectory.dir("generated/welcome/res/drawable-nodpi"))
+ rename { "welcome_background.png" }
+}
+android.sourceSets.getByName("main").res.srcDir(layout.buildDirectory.dir("generated/welcome/res"))
+tasks.named("preBuild").configure { dependsOn(prepareWelcomeArt) }
