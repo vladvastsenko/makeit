@@ -149,7 +149,7 @@ fun PatternEditor(lang: String, openProjects:Boolean=false, selectedProject:Stri
   try {
    if(outline && b!=null) {
     val result=withContext(Dispatchers.Default){
-     val subject=if(isolate)isolatePattern(b,left,top,right,bottom,tolerance.toInt()) else b
+     val subject=if(isolate)smartSelection(b,left,top,right,bottom,tolerance.toInt()) else b
      val lines=if(isolate&&cutOnly)silhouettePattern(subject) else outlineBitmap(subject,threshold.toInt()).let { if(exterior)outerOnly(it) else it }
      val pixels=IntArray(lines.width*lines.height)
      lines.getPixels(pixels,0,lines.width,0,0,lines.width,lines.height)
