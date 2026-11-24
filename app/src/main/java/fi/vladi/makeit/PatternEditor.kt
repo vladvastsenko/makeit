@@ -56,7 +56,7 @@ fun PatternEditor(lang: String, openProjects:Boolean=false, selectedProject:Stri
  var holeMode by remember { mutableStateOf(0) }
  val more=advancedLabels[lang] ?: advancedLabels.getValue("en")
  val options=printLabels[lang] ?: printLabels.getValue("en")
- var threshold by remember { mutableStateOf(80f) }
+ var threshold by remember { mutableStateOf(25f) }
  var processed by remember { mutableStateOf<Bitmap?>(null) }
  var busy by remember { mutableStateOf(false) }
  var status by remember { mutableStateOf("") }
@@ -310,7 +310,7 @@ fun PatternEditor(lang: String, openProjects:Boolean=false, selectedProject:Stri
  Slider(thickness,{thickness=it},valueRange=0.2f..1f,steps=7)
  Row { Checkbox(lockRatio,{lockRatio=it});Text(options[3],Modifier.padding(top=12.dp)) }
  Row { Checkbox(checked=outline,onCheckedChange={outline=it}); Text(extra[0],modifier=Modifier.padding(top=12.dp)) }
- if(outline) Slider(value=threshold,onValueChange={threshold=it},valueRange=20f..250f)
+ if(outline) Slider(value=threshold,onValueChange={threshold=it},valueRange=4f..250f)
  if(failed) Text(t[5],color=MaterialTheme.colorScheme.error)
  OutlinedTextField(width,{width=it; val n=it.replace(',','.').toDoubleOrNull(); val b=bitmap;if(lockRatio&&n!=null&&b!=null)height=(n*b.height/b.width).toString()},label={Text(t[2]+" (cm)")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal),singleLine=true)
  OutlinedTextField(height,{height=it; val n=it.replace(',','.').toDoubleOrNull(); val b=bitmap;if(lockRatio&&n!=null&&b!=null)width=(n*b.width/b.height).toString()},label={Text(t[3]+" (cm)")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal),singleLine=true)
