@@ -76,14 +76,51 @@ fun PatternEditor(lang: String, openProjects:Boolean=false) {
  val stream=atomic.startWrite()
  try{stream.write(j.toString().toByteArray(Charsets.UTF_8));atomic.finishWrite(stream)}catch(e:Exception){atomic.failWrite(stream);throw e}
  }
+ val draftFile=remember{java.io.File(context.filesDir,"draft.json")}
+ val draftImage=remember{java.io.File(context.filesDir,"draft.png")}
+ var restored by remember{mutableStateOf(false)}
+ fun snapshot():org.json.JSONObject=org.json.JSONObject().put("projectId",projectId ?: "").put("name",projectName).put("width",width).put("height",height).put("a3",a3).put("outline",outline).put("lockRatio",lockRatio).put("exterior",exterior).put("skipBlank",skipBlank).put("threshold",threshold.toDouble()).put("thickness",thickness.toDouble()).put("groups",org.json.JSONArray(groups.toList())).put("strokes",org.json.JSONArray().apply{strokes.forEach{(a,z,e)->put(org.json.JSONArray().put(a.x.toDouble()).put(a.y.toDouble()).put(z.x.toDouble()).put(z.y.toDouble()).put(e))}})
+ LaunchedEffect(Unit){
+  runCatching{
+   if(draftFile.exists()&&draftImage.exists()){
+    val j=readProject(draftFile)
+    val b=BitmapFactory.decodeFile(draftImage.path) ?: error("draft")
+    projectId=j.optString("projectId").ifBlank{null};projectName=j.optString("name")
+    width=j.getString("width");height=j.getString("height");a3=j.optBoolean("a3");outline=j.optBoolean("outline",true);lockRatio=j.optBoolean("lockRatio",true);exterior=j.optBoolean("exterior");skipBlank=j.optBoolean("skipBlank",true);threshold=j.optDouble("threshold",80.0).toFloat();thickness=j.optDouble("thickness",0.5).toFloat()
+    val arr=j.getJSONArray("strokes")
+    strokes.clear();groups.clear()
+    for(i in 0 until arr.length()){val a=arr.getJSONArray(i);strokes.add(Triple(Offset(a.getDouble(0).toFloat(),a.getDouble(1).toFloat()),Offset(a.getDouble(2).toFloat(),a.getDouble(3).toFloat()),a.getBoolean(4)))}
+    val g=j.optJSONArray("groups");if(g!=null)for(i in 0 until g.length())groups.add(g.getInt(i))
+    if(groups.sum()!=strokes.size){groups.clear();repeat(strokes.size){groups.add(1)}}
+    bitmap=b
+   }
+  }
+  restored=true
+ }
+ LaunchedEffect(bitmap,restored){
+  val b=bitmap
+  if(restored&&b!=null){
+   withContext(Dispatchers.IO){
+    val atomic=android.util.AtomicFile(draftImage);val out=atomic.startWrite()
+    try{check(b.compress(Bitmap.CompressFormat.PNG,100,out));atomic.finishWrite(out)}catch(e:Exception){atomic.failWrite(out)}
+   }
+  }
+ }
+ val draftState=if(restored&&bitmap!=null)snapshot().toString() else null
+ LaunchedEffect(draftState){
+  if(draftState!=null){kotlinx.coroutines.delay(350);withContext(Dispatchers.IO){runCatching{writeProject(draftFile,org.json.JSONObject(draftState))}}}
+ }
+ DisposableEffect(Unit){
+  onDispose{if(restored&&bitmap!=null)runCatching{writeProject(draftFile,snapshot())}}
+ }
  LaunchedEffect(bitmap,outline,threshold,exterior) {
   processed=null
   val b=bitmap
   if(outline && b!=null) processed=withContext(Dispatchers.Default){outlineBitmap(b,threshold.toInt()).let { if(exterior)outerOnly(it) else it }}
  }
  val preview=if(outline)processed else bitmap
- LaunchedEffect(uri){strokes.clear();groups.clear();redo.clear()}
- LaunchedEffect(bitmap){bitmap?.let { if(lockRatio&&projectId==null) height=((width.replace(',','.').toDoubleOrNull() ?: 110.0)*it.height/it.width).toString() }}
+ LaunchedEffect(uri){if(uri!=null){strokes.clear();groups.clear();redo.clear()}}
+ LaunchedEffect(bitmap){bitmap?.let { if(lockRatio&&projectId==null&&uri!=null) height=((width.replace(',','.').toDoubleOrNull() ?: 110.0)*it.height/it.width).toString() }}
  val w=width.replace(',','.').toDoubleOrNull()
  val h=height.replace(',','.').toDoubleOrNull()
  val layout=if(w!=null&&h!=null&&w in 0.1..1000.0&&h in 0.1..1000.0) SheetLayout(w*10,h*10,a3) else null
