@@ -5,6 +5,8 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.ui.graphics.graphicsLayer
@@ -222,14 +224,20 @@ fun PatternEditor(lang: String) {
  if(layout!=null){
   Text(t[4]+": "+layout.count+" ("+layout.columns+" × "+layout.rows+") + 1",style=MaterialTheme.typography.titleLarge)
   Text("10 mm / 10 mm · 100%")
-  if(layout.count<=400) Box(Modifier.fillMaxWidth().height(180.dp)){
-   preview?.let { Image(it.asImageBitmap(),null,Modifier.matchParentSize(),contentScale=ContentScale.FillBounds) }
-   Canvas(Modifier.matchParentSize()){
-   val cw=size.width/layout.columns;val ch=size.height/layout.rows
-   for(row in 0 until layout.rows)for(col in 0 until layout.columns){
-    drawRect(Color(0xFF668A7B),Offset(col*cw,row*ch),androidx.compose.ui.geometry.Size(cw,ch),style=androidx.compose.ui.graphics.drawscope.Stroke(1f))
+  if(layout.count<=400) BoxWithConstraints(Modifier.fillMaxWidth().height(220.dp).background(Color.White,RoundedCornerShape(12.dp))){
+   val totalW=(layout.columns-1)*layout.stepX+layout.usableW
+   val totalH=(layout.rows-1)*layout.stepY+layout.usableH
+   val scale=minOf(maxWidth.value/totalW,maxHeight.value/totalH)
+   Box(Modifier.size((totalW*scale).dp,(totalH*scale).dp)){
+    preview?.let { Image(it.asImageBitmap(),null,Modifier.size((layout.width*scale).dp,(layout.height*scale).dp),contentScale=ContentScale.FillBounds) }
+    Canvas(Modifier.matchParentSize()){
+     val sx=size.width/totalW;val sy=size.height/totalH
+     for((a,z,e) in strokes)drawLine(if(e)Color.White else Color.Black,Offset((a.x*layout.width*sx).toFloat(),(a.y*layout.height*sy).toFloat()),Offset((z.x*layout.width*sx).toFloat(),(z.y*layout.height*sy).toFloat()),strokeWidth=1f)
+     for(row in 0 until layout.rows)for(col in 0 until layout.columns){
+      drawRect(Color(0xFF668A7B),Offset(col*layout.stepX*sx,row*layout.stepY*sy),androidx.compose.ui.geometry.Size(layout.usableW*sx,layout.usableH*sy),style=androidx.compose.ui.graphics.drawscope.Stroke(1f))
+     }
+    }
    }
-  }
   }
   Button(enabled=bitmap!=null&&!busy,onClick={
    val b=bitmap ?: return@Button
