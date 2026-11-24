@@ -120,18 +120,40 @@ internal fun thicken(source:Bitmap,mm:Float,widthMm:Double,heightMm:Double):Bitm
 private fun vectorLines(p:IntArray,w:Int,h:Int,wm:Float,hm:Float):Path {
  val path=Path()
  val sx=wm/w;val sy=hm/h
- // Trace connected horizontal runs, joining adjacent pixels vertically and diagonally.
- for(y in 0 until h)for(x in 0 until w){
- val i=y*w+x
- if(p[i]!=Color.BLACK)continue
- val a=(x+0.5f)*sx;val b=(y+0.5f)*sy
- var linked=false
- if(x+1<w&&p[i+1]==Color.BLACK){path.moveTo(a,b);path.lineTo(a+sx,b);linked=true}
- if(y+1<h)for(dx in -1..1)if(x+dx in 0 until w&&p[i+w+dx]==Color.BLACK){
- if(dx!=0&&(p[i+dx]==Color.BLACK||p[i+w]==Color.BLACK))continue
- path.moveTo(a,b);path.lineTo(a+dx*sx,b+sy);linked=true
+ val visited=BooleanArray(p.size)
+ fun neighbors(i:Int):List<Int>{
+ val x=i%w;val y=i/w
+ return buildList{
+ for(dy in -1..1)for(dx in -1..1){
+ if(dx==0&&dy==0)continue
+ if(x+dx !in 0 until w||y+dy !in 0 until h)continue
+ val j=i+dy*w+dx
+ if(p[j]!=Color.BLACK)continue
+ if(dx!=0&&dy!=0&&(p[i+dx]==Color.BLACK||p[i+dy*w]==Color.BLACK))continue
+ add(j)
  }
- if(!linked){path.moveTo(a,b);path.lineTo(a+0.001f,b)}
  }
+ }
+ fun trace(start:Int){
+ val points=ArrayList<Int>();var current=start
+ while(!visited[current]){
+ visited[current]=true;points.add(current)
+ val next=neighbors(current).firstOrNull{!visited[it]} ?: break
+ current=next
+ }
+ fun x(i:Int)=(i%w+0.5f)*sx
+ fun y(i:Int)=(i/w+0.5f)*sy
+ path.moveTo(x(start),y(start))
+ if(points.size==1){path.lineTo(x(start)+0.001f,y(start));return}
+ for(k in 1 until points.lastIndex){
+ val a=points[k];val b=points[k+1]
+ path.quadTo(x(a),y(a),(x(a)+x(b))/2,(y(a)+y(b))/2)
+ }
+ val end=points.last()
+ path.lineTo(x(end),y(end))
+ if(points.size>3&&start in neighbors(end))path.close()
+ }
+ for(i in p.indices)if(p[i]==Color.BLACK&&!visited[i]&&neighbors(i).size<=1)trace(i)
+ for(i in p.indices)if(p[i]==Color.BLACK&&!visited[i])trace(i)
  return path
 }
