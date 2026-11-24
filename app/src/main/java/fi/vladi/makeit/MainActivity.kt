@@ -29,14 +29,14 @@ class MainActivity : ComponentActivity() {
    var guest by remember { mutableStateOf(prefs.getBoolean("guest", false)) }
    var page by remember { mutableIntStateOf(0) }
    val labels = translations[lang] ?: translations.getValue("en")
-   MaterialTheme(colorScheme = lightColorScheme(primary=Color(0xFF243D35), secondary=Color(0xFFB45D30), background=Color(0xFFF7F3EB))) {
-    Scaffold(bottomBar = { if(guest) NavigationBar { labels.take(5).forEachIndexed { i, s -> NavigationBarItem(selected=page==i,onClick={page=i},icon={Text(listOf("⌂","☆","+","▣","⚙")[i],fontSize=23.sp)},label={Text(s,fontSize=10.sp)}) } } }) { pad ->
+   MaterialTheme(colorScheme = lightColorScheme(primary=Color(0xFF243D35), secondary=Color(0xFFB45D30), background=Color(0xFFF7F3EB), surface=Color(0xFFFFFCF6), surfaceVariant=Color(0xFFE5EAE1), tertiary=Color(0xFFB45D30))) {
+    Scaffold(bottomBar = { if(guest) NavigationBar(containerColor=Color(0xFFFFFCF6)) { labels.take(5).forEachIndexed { i, s -> NavigationBarItem(selected=page==i,onClick={page=i},icon={Text(listOf("⌂","☆","+","▣","⚙")[i],fontSize=23.sp)},label={Text(s,fontSize=10.sp)}) } } }) { pad ->
      Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(pad).padding(20.dp).verticalScroll(rememberScrollState()), verticalArrangement=Arrangement.spacedBy(16.dp)) {
       Text("MakeIt.", style=MaterialTheme.typography.displayMedium,color=MaterialTheme.colorScheme.primary)
       if(!guest || page==4) {
        Text(labels[5],style=MaterialTheme.typography.titleLarge)
        languages.forEach { (id,name) -> OutlinedButton(onClick={lang=id;prefs.edit().putString("language",id).apply()},modifier=Modifier.fillMaxWidth()){Text(if(lang==id) "✓ $name" else name)} }
-       if(guest) BackupSettings(lang)
+       if(guest) { AccountSettings(lang); BackupSettings(lang) }
        if(!guest) Button(onClick={guest=true;prefs.edit().putBoolean("guest",true).apply()},modifier=Modifier.fillMaxWidth()){Text(backupLabels.getValue(lang)[4])}
       } else if(page==0) {
        Card(colors=CardDefaults.cardColors(containerColor=Color(0xFF243D35)),shape=RoundedCornerShape(24.dp)) {
