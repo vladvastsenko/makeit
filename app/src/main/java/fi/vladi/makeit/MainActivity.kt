@@ -1,5 +1,9 @@
 package fi.vladi.makeit
 import android.os.Bundle
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.Alignment
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
@@ -32,7 +36,28 @@ class MainActivity : ComponentActivity() {
    val labels = translations[lang] ?: translations.getValue("en")
    MaterialTheme(colorScheme = lightColorScheme(primary=Color(0xFF243D35), secondary=Color(0xFFB45D30), background=Color(0xFFF7F3EB), surface=Color(0xFFFFFCF6), surfaceVariant=Color(0xFFE5EAE1), tertiary=Color(0xFFB45D30))) {
     Scaffold(bottomBar = { if(guest) NavigationBar(containerColor=Color(0xFFFFFCF6)) { labels.take(5).forEachIndexed { i, s -> NavigationBarItem(selected=page==i,onClick={page=i},icon={Text(listOf("⌂","☆","+","▣","⚙")[i],fontSize=23.sp)},label={Text(s,fontSize=10.sp)}) } } }) { pad ->
-     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(pad).padding(20.dp).verticalScroll(rememberScrollState()), verticalArrangement=Arrangement.spacedBy(16.dp)) {
+     if(!guest){
+      Box(Modifier.fillMaxSize().padding(pad)){
+       Image(painterResource(R.drawable.welcome_background),contentDescription=null,modifier=Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
+       Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(24.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+        Text("MakeIt",style=MaterialTheme.typography.displayLarge,color=Color(0xFF243D35))
+        Text(labels[7],style=MaterialTheme.typography.titleMedium,color=Color(0xFF243D35))
+        Card(shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color(0xFFFFFCF6))){
+         Column(Modifier.padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+          Text(labels[5],style=MaterialTheme.typography.titleLarge)
+          var expanded by remember{mutableStateOf(false)}
+          Box(Modifier.fillMaxWidth()){
+           OutlinedButton(onClick={expanded=true},modifier=Modifier.fillMaxWidth()){Text(languages.getValue(lang)+"  ▾")}
+           DropdownMenu(expanded=expanded,onDismissRequest={expanded=false}){
+            languages.forEach{(id,name)->DropdownMenuItem(text={Text(name)},onClick={lang=id;prefs.edit().putString("language",id).apply();expanded=false})}
+           }
+          }
+          Button(onClick={guest=true;prefs.edit().putBoolean("guest",true).apply()},modifier=Modifier.fillMaxWidth(),colors=ButtonDefaults.buttonColors(containerColor=Color(0xFFB45D30))){Text(backupLabels.getValue(lang)[4])}
+         }
+        }
+       }
+      }
+     } else Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(pad).padding(20.dp).verticalScroll(rememberScrollState()), verticalArrangement=Arrangement.spacedBy(16.dp)) {
       Text("MakeIt.", style=MaterialTheme.typography.displayMedium,color=MaterialTheme.colorScheme.primary)
       if(!guest || page==4) {
        Text(labels[5],style=MaterialTheme.typography.titleLarge)
