@@ -89,14 +89,14 @@ fun PatternEditor(lang: String, openProjects:Boolean=false, selectedProject:Stri
  val draftFile=remember{java.io.File(context.filesDir,"draft.json")}
  val draftImage=remember{java.io.File(context.filesDir,"draft.png")}
  var restored by remember{mutableStateOf(false)}
- fun snapshot():org.json.JSONObject=org.json.JSONObject().put("projectId",projectId ?: "").put("name",projectName).put("width",width).put("height",height).put("a3",a3).put("outline",outline).put("lockRatio",lockRatio).put("exterior",exterior).put("skipBlank",skipBlank).put("threshold",threshold.toDouble()).put("thickness",thickness.toDouble()).put("groups",org.json.JSONArray(groups.toList())).put("strokes",org.json.JSONArray().apply{strokes.forEach{(a,z,e)->put(org.json.JSONArray().put(a.x.toDouble()).put(a.y.toDouble()).put(z.x.toDouble()).put(z.y.toDouble()).put(e))}})
+ fun snapshot():org.json.JSONObject=org.json.JSONObject().put("isolate",isolate).put("cutOnly",cutOnly).put("left",left.toDouble()).put("top",top.toDouble()).put("right",right.toDouble()).put("bottom",bottom.toDouble()).put("tolerance",tolerance.toDouble()).put("projectId",projectId ?: "").put("name",projectName).put("width",width).put("height",height).put("a3",a3).put("outline",outline).put("lockRatio",lockRatio).put("exterior",exterior).put("skipBlank",skipBlank).put("threshold",threshold.toDouble()).put("thickness",thickness.toDouble()).put("groups",org.json.JSONArray(groups.toList())).put("strokes",org.json.JSONArray().apply{strokes.forEach{(a,z,e)->put(org.json.JSONArray().put(a.x.toDouble()).put(a.y.toDouble()).put(z.x.toDouble()).put(z.y.toDouble()).put(e))}})
  LaunchedEffect(Unit){
   runCatching{
    if(draftFile.exists()&&draftImage.exists()){
     val j=readProject(draftFile)
     val b=BitmapFactory.decodeFile(draftImage.path) ?: error("draft")
     projectId=j.optString("projectId").ifBlank{null};projectName=j.optString("name")
-    width=j.getString("width");height=j.getString("height");a3=j.optBoolean("a3");outline=j.optBoolean("outline",true);lockRatio=j.optBoolean("lockRatio",true);exterior=j.optBoolean("exterior");skipBlank=j.optBoolean("skipBlank",true);threshold=j.optDouble("threshold",80.0).toFloat();thickness=j.optDouble("thickness",0.5).toFloat()
+    isolate=j.optBoolean("isolate");cutOnly=j.optBoolean("cutOnly");left=j.optDouble("left",0.0).toFloat();top=j.optDouble("top",0.0).toFloat();right=j.optDouble("right",1.0).toFloat();bottom=j.optDouble("bottom",1.0).toFloat();tolerance=j.optDouble("tolerance",12.0).toFloat();width=j.getString("width");height=j.getString("height");a3=j.optBoolean("a3");outline=j.optBoolean("outline",true);lockRatio=j.optBoolean("lockRatio",true);exterior=j.optBoolean("exterior");skipBlank=j.optBoolean("skipBlank",true);threshold=j.optDouble("threshold",80.0).toFloat();thickness=j.optDouble("thickness",0.5).toFloat()
     val arr=j.getJSONArray("strokes")
     strokes.clear();groups.clear()
     for(i in 0 until arr.length()){val a=arr.getJSONArray(i);strokes.add(Triple(Offset(a.getDouble(0).toFloat(),a.getDouble(1).toFloat()),Offset(a.getDouble(2).toFloat(),a.getDouble(3).toFloat()),a.getBoolean(4)))}
@@ -130,7 +130,7 @@ fun PatternEditor(lang: String, openProjects:Boolean=false, selectedProject:Stri
  if(j!=null){ try{
  val b=BitmapFactory.decodeFile(java.io.File(dir,j.getString("image")).path) ?: error("image")
  projectId=file.nameWithoutExtension;projectName=j.optString("name",file.nameWithoutExtension)
- width=j.getString("width");height=j.getString("height");a3=j.optBoolean("a3");threshold=j.optDouble("threshold",80.0).toFloat();exterior=j.optBoolean("exterior");thickness=j.optDouble("thickness",0.5).toFloat();skipBlank=j.optBoolean("skipBlank",true);outline=j.optBoolean("outline",true);lockRatio=j.optBoolean("lockRatio",true)
+ isolate=j.optBoolean("isolate");cutOnly=j.optBoolean("cutOnly");left=j.optDouble("left",0.0).toFloat();top=j.optDouble("top",0.0).toFloat();right=j.optDouble("right",1.0).toFloat();bottom=j.optDouble("bottom",1.0).toFloat();tolerance=j.optDouble("tolerance",12.0).toFloat();width=j.getString("width");height=j.getString("height");a3=j.optBoolean("a3");threshold=j.optDouble("threshold",80.0).toFloat();exterior=j.optBoolean("exterior");thickness=j.optDouble("thickness",0.5).toFloat();skipBlank=j.optBoolean("skipBlank",true);outline=j.optBoolean("outline",true);lockRatio=j.optBoolean("lockRatio",true)
  strokes.clear();groups.clear();redo.clear()
  val arr=j.optJSONArray("strokes") ?: org.json.JSONArray()
  for(i in 0 until arr.length()){val a=arr.getJSONArray(i);strokes.add(Triple(Offset(a.getDouble(0).toFloat(),a.getDouble(1).toFloat()),Offset(a.getDouble(2).toFloat(),a.getDouble(3).toFloat()),a.getBoolean(4)))}
@@ -254,7 +254,7 @@ fun PatternEditor(lang: String, openProjects:Boolean=false, selectedProject:Stri
  try{
  val b=BitmapFactory.decodeFile(java.io.File(dir,j.getString("image")).path) ?: error("image")
  projectId=file.nameWithoutExtension;projectName=name
- width=j.getString("width");height=j.getString("height");a3=j.optBoolean("a3");threshold=j.optDouble("threshold",80.0).toFloat();exterior=j.optBoolean("exterior");thickness=j.optDouble("thickness",0.5).toFloat();skipBlank=j.optBoolean("skipBlank",true);outline=j.optBoolean("outline",true);lockRatio=j.optBoolean("lockRatio",true)
+ isolate=j.optBoolean("isolate");cutOnly=j.optBoolean("cutOnly");left=j.optDouble("left",0.0).toFloat();top=j.optDouble("top",0.0).toFloat();right=j.optDouble("right",1.0).toFloat();bottom=j.optDouble("bottom",1.0).toFloat();tolerance=j.optDouble("tolerance",12.0).toFloat();width=j.getString("width");height=j.getString("height");a3=j.optBoolean("a3");threshold=j.optDouble("threshold",80.0).toFloat();exterior=j.optBoolean("exterior");thickness=j.optDouble("thickness",0.5).toFloat();skipBlank=j.optBoolean("skipBlank",true);outline=j.optBoolean("outline",true);lockRatio=j.optBoolean("lockRatio",true)
  strokes.clear();groups.clear();redo.clear()
  val arr=j.optJSONArray("strokes") ?: org.json.JSONArray()
  for(i in 0 until arr.length()){val a=arr.getJSONArray(i);strokes.add(Triple(Offset(a.getDouble(0).toFloat(),a.getDouble(1).toFloat()),Offset(a.getDouble(2).toFloat(),a.getDouble(3).toFloat()),a.getBoolean(4)))}
