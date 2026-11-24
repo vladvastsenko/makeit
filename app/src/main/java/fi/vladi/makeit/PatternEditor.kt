@@ -31,7 +31,7 @@ import kotlinx.coroutines.withContext
 import kotlin.math.ceil
 
 @Composable
-fun PatternEditor(lang: String) {
+fun PatternEditor(lang: String, openProjects:Boolean=false) {
  val t = editorLabels[lang] ?: editorLabels.getValue("en")
  val context = LocalContext.current
  var uri by remember { mutableStateOf<Uri?>(null) }
@@ -66,7 +66,7 @@ fun PatternEditor(lang: String) {
  var projectId by remember { mutableStateOf<String?>(null) }
  var projectName by remember { mutableStateOf("") }
  var refresh by remember { mutableIntStateOf(0) }
- var showProjects by remember { mutableStateOf(false) }
+ var showProjects by remember { mutableStateOf(openProjects) }
  var deleteId by remember { mutableStateOf<String?>(null) }
  val pm=projectLabels[lang] ?: projectLabels.getValue("en")
  val projects=remember(refresh){dir.listFiles()?.filter{it.extension=="json"}?.sortedByDescending{it.lastModified()} ?: emptyList()}
