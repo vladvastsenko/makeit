@@ -57,7 +57,10 @@ class MainActivity : ComponentActivity() {
         }
        }
       }
-     } else Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(pad).padding(20.dp).verticalScroll(rememberScrollState()), verticalArrangement=Arrangement.spacedBy(16.dp)) {
+     } else Box(Modifier.fillMaxSize().padding(pad)){
+      Image(painterResource(R.drawable.makeit_background),null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
+      Box(Modifier.fillMaxSize().background(Color(0xFFF7F3EB).copy(alpha=0.89f)))
+      Column(Modifier.fillMaxSize().padding(20.dp).verticalScroll(rememberScrollState()), verticalArrangement=Arrangement.spacedBy(16.dp)) {
       Text("MakeIt.", style=MaterialTheme.typography.displayMedium,color=MaterialTheme.colorScheme.primary)
       if(!guest || page==4) {
        Text(labels[5],style=MaterialTheme.typography.titleLarge)
@@ -76,6 +79,7 @@ class MainActivity : ComponentActivity() {
        }
        listOf(2,1,3).forEachIndexed { j,i -> Card(onClick={page=i}, colors=CardDefaults.cardColors(containerColor=listOf(Color(0xFFFFD9B8),Color(0xFFD8E7DC),Color(0xFFDCE4F4))[j]),shape=RoundedCornerShape(20.dp)){Text(labels[i],Modifier.fillMaxWidth().padding(28.dp),style=MaterialTheme.typography.headlineSmall)} }
       } else if(page==1) { IdeasCatalog(lang) { page=2 } } else if(page==2 || page==3) { key(page){PatternEditor(lang, page==3, selectedProject, { id -> selectedProject=id;page=2 })} } else { Text(labels[page],style=MaterialTheme.typography.headlineMedium); Text(labels[8]) }
+     }
      }
     }
    }
