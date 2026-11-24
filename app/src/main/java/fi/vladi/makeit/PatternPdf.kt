@@ -16,14 +16,27 @@ internal class SheetLayout(val width: Double,val height: Double,val a3:Boolean) 
  val rows=ceil((height-10).coerceAtLeast(1.0)/stepY).toInt()
  val count=columns*rows
 }
-internal fun exportPattern(bitmap:Bitmap, layout:SheetLayout, output:OutputStream) {
+internal fun exportPattern(bitmap:Bitmap, layout:SheetLayout, output:OutputStream, skipBlank:Boolean=true) {
  require(layout.count in 1..400)
  val pt=72f/25.4f
  val doc=PdfDocument()
- val paint=Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+ val paint=Paint(Paint.ANTI_ALIAS_FLAG)
  try {
- for(row in 0 until layout.rows) for(col in 0 until layout.columns) {
- val index=row*layout.columns+col+1
+ val pixels=IntArray(bitmap.width*bitmap.height)
+ bitmap.getPixels(pixels,0,bitmap.width,0,0,bitmap.width,bitmap.height)
+ val tiles=(0 until layout.rows).flatMap { row -> (0 until layout.columns).map { col -> row to col } }.filter { (row,col) ->
+ if(!skipBlank) true else {
+ val left=(col*layout.stepX/layout.width*bitmap.width).toInt().coerceIn(0,bitmap.width)
+ val top=(row*layout.stepY/layout.height*bitmap.height).toInt().coerceIn(0,bitmap.height)
+ val right=ceil((col*layout.stepX+layout.usableW)/layout.width*bitmap.width).toInt().coerceIn(0,bitmap.width)
+ val bottom=ceil((row*layout.stepY+layout.usableH)/layout.height*bitmap.height).toInt().coerceIn(0,bitmap.height)
+ (top until bottom).any { y -> (left until right).any { x -> pixels[y*bitmap.width+x] != Color.WHITE } }
+ }
+ }
+ require(tiles.isNotEmpty())
+ for((i,tile) in tiles.withIndex()) {
+ val (row,col)=tile
+ val index=i+1
  val page=doc.startPage(PdfDocument.PageInfo.Builder((layout.paperW*pt).roundToInt(),(layout.paperH*pt).roundToInt(),index).create())
  val c=page.canvas
  c.save()
@@ -41,11 +54,11 @@ internal fun exportPattern(bitmap:Bitmap, layout:SheetLayout, output:OutputStrea
  c.drawRect(10f,10f,10f+layout.usableW,10f+layout.usableH,paint)
  paint.style=Paint.Style.FILL
  paint.textSize=3f
- c.drawText("$index / ${layout.count}   R${row+1} C${col+1}   100%",10f,7f,paint)
+ c.drawText("$index / ${tiles.size}   R${row+1} C${col+1}   100%",10f,7f,paint)
  c.restore()
  doc.finishPage(page)
  }
- val page=doc.startPage(PdfDocument.PageInfo.Builder((layout.paperW*pt).roundToInt(),(layout.paperH*pt).roundToInt(),layout.count+1).create())
+ val page=doc.startPage(PdfDocument.PageInfo.Builder((layout.paperW*pt).roundToInt(),(layout.paperH*pt).roundToInt(),tiles.size+1).create())
  page.canvas.scale(pt,pt)
  paint.style=Paint.Style.STROKE
  paint.strokeWidth=0.2f
@@ -68,5 +81,31 @@ internal fun outlineBitmap(source:Bitmap, threshold:Int):Bitmap {
  val edge=kotlin.math.abs(gray[i+1]-gray[i-1])+kotlin.math.abs(gray[i+w]-gray[i-w])
  if(edge>=threshold)out[i]=Color.BLACK
  }
+ return Bitmap.createBitmap(out,w,h,Bitmap.Config.ARGB_8888)
+}
+
+internal fun outerOnly(source:Bitmap):Bitmap {
+ val w=source.width; val h=source.height
+ val p=IntArray(w*h); source.getPixels(p,0,w,0,0,w,h)
+ val seen=BooleanArray(p.size); val queue=IntArray(p.size); var head=0; var tail=0
+ fun visit(i:Int){if(!seen[i]&&p[i]==Color.WHITE){seen[i]=true;queue[tail++]=i}}
+ for(x in 0 until w){visit(x);visit((h-1)*w+x)}
+ for(y in 0 until h){visit(y*w);visit(y*w+w-1)}
+ while(head<tail){val i=queue[head++];val x=i%w;val y=i/w
+ if(x>0)visit(i-1);if(x<w-1)visit(i+1);if(y>0)visit(i-w);if(y<h-1)visit(i+w)}
+ val out=IntArray(p.size){i ->
+ val x=i%w;val y=i/w
+ if(!seen[i]&&(x==0||x==w-1||y==0||y==h-1||seen[i-1]||seen[i+1]||seen[i-w]||seen[i+w]))Color.BLACK else Color.WHITE
+ }
+ return Bitmap.createBitmap(out,w,h,Bitmap.Config.ARGB_8888)
+}
+internal fun thicken(source:Bitmap,mm:Float,widthMm:Double,heightMm:Double):Bitmap {
+ val w=source.width;val h=source.height
+ val p=IntArray(w*h);source.getPixels(p,0,w,0,0,w,h)
+ val out=p.copyOf()
+ val rx=(mm*w/widthMm/2).toInt().coerceIn(0,32)
+ val ry=(mm*h/heightMm/2).toInt().coerceIn(0,32)
+ for(y in 0 until h)for(x in 0 until w)if(p[y*w+x]==Color.BLACK)
+ for(dy in -ry..ry)for(dx in -rx..rx)if(x+dx in 0 until w&&y+dy in 0 until h)out[(y+dy)*w+x+dx]=Color.BLACK
  return Bitmap.createBitmap(out,w,h,Bitmap.Config.ARGB_8888)
 }
