@@ -22,8 +22,8 @@ jobs:
         run: |
           ls -la
           find . -iname '*.png' -not -path './.git/*'
-          file=$(find . -maxdepth 2 -type f -iname '5eff8f86*.png' -print -quit)
-          test -n "$file"
+          file=fon.png
+          test -s "$file"
           mkdir -p app/src/main/res/drawable-nodpi
           cp "$file" app/src/main/res/drawable-nodpi/welcome_background.png
       - run: gradle :app:assembleDebug --stacktrace
