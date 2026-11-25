@@ -41,6 +41,8 @@ internal fun NumberPaintingEditor(lang:String,fullColor:Boolean=false,selectedId
  val removeLabel=mapOf("en" to "Remove background","ru" to "Удалить фон","fi" to "Poista tausta","et" to "Eemalda taust","sv" to "Ta bort bakgrund","de" to "Hintergrund entfernen","fr" to "Supprimer le fond","pl" to "Usuń tło","es" to "Eliminar fondo","it" to "Rimuovi sfondo","lv" to "Noņemt fonu","lt" to "Pašalinti foną","nb" to "Fjern bakgrunn","da" to "Fjern baggrund").getValue(lang)
  var source by remember{mutableStateOf<Bitmap?>(null)}
  var result by remember{mutableStateOf<NumberPainting?>(null)}
+ var lineMm by remember{mutableStateOf(0.25f)}
+ val complexityLabels=mapOf("en" to "Easy|Medium|Hard|Line width","ru" to "Простая|Средняя|Сложная|Толщина линий","fi" to "Helppo|Keskitaso|Vaikea|Viivan paksuus","et" to "Lihtne|Keskmine|Raske|Joone paksus","sv" to "Enkel|Medel|Svår|Linjebredd","de" to "Einfach|Mittel|Schwer|Linienbreite","fr" to "Facile|Moyen|Difficile|Épaisseur du trait","pl" to "Łatwa|Średnia|Trudna|Grubość linii","es" to "Fácil|Media|Difícil|Grosor de línea","it" to "Facile|Media|Difficile|Spessore linea","lv" to "Viegla|Vidēja|Grūta|Līnijas biezums","lt" to "Lengva|Vidutinė|Sunki|Linijos storis","nb" to "Enkel|Middels|Vanskelig|Linjetykkelse","da" to "Let|Mellem|Svær|Linjetykkelse").getValue(lang).split('|')
  var colors by remember{mutableIntStateOf(16)}
  var detail by remember{mutableIntStateOf(480)}
  var minimum by remember{mutableIntStateOf(80)}
@@ -54,7 +56,7 @@ internal fun NumberPaintingEditor(lang:String,fullColor:Boolean=false,selectedId
  var busy by remember{mutableStateOf(false)}
  var status by remember{mutableStateOf("")}
  var pending by remember{mutableStateOf<java.io.File?>(null)}
- LaunchedEffect(creativeId){if(creativeId!=null){busy=true;try{val folder=java.io.File(creativeRoot(context),creativeId);val j=withContext(Dispatchers.IO){creativeSettings(folder)};val b=withContext(Dispatchers.IO){creativeImage(folder,"source.png")?:error("image")};source=b;isolated=withContext(Dispatchers.IO){creativeImage(folder,"isolated.png")};width=j.getString("width");height=j.getString("height");a3=j.getBoolean("a3");landscape=j.optBoolean("landscape");fitOne=j.optBoolean("fitOne");colors=j.optInt("colors",16);detail=j.optInt("detail",480);minimum=j.optInt("minimum",80);if(!fullColor)result=withContext(Dispatchers.Default){numberPainting(b,colors,detail,minimum)}}catch(e:Exception){status=t[11]}finally{busy=false}}}
+ LaunchedEffect(creativeId){if(creativeId!=null){busy=true;try{val folder=java.io.File(creativeRoot(context),creativeId);val j=withContext(Dispatchers.IO){creativeSettings(folder)};val b=withContext(Dispatchers.IO){creativeImage(folder,"source.png")?:error("image")};source=b;isolated=withContext(Dispatchers.IO){creativeImage(folder,"isolated.png")};width=j.getString("width");height=j.getString("height");a3=j.getBoolean("a3");lineMm=j.optDouble("lineMm",0.25).toFloat().coerceIn(0.15f,0.6f);landscape=j.optBoolean("landscape");fitOne=j.optBoolean("fitOne");colors=j.optInt("colors",16);detail=j.optInt("detail",480);minimum=j.optInt("minimum",80);if(!fullColor)result=withContext(Dispatchers.Default){numberPainting(b,colors,detail,minimum)}}catch(e:Exception){status=t[11]}finally{busy=false}}}
  LaunchedEffect(selectedIdea){if(selectedIdea!=null){busy=true;try{val b=withContext(Dispatchers.IO){ideaBitmap(context,selectedIdea)};source=b;isolated=null;result=null;height="30";width=(30.0*b.width/b.height).toString()}catch(e:Exception){status=t[11]}finally{busy=false}}}
  val picker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()){uri->
   if(uri!=null){busy=true;scope.launch{
@@ -77,6 +79,9 @@ internal fun NumberPaintingEditor(lang:String,fullColor:Boolean=false,selectedId
  }
  Button(onClick={picker.launch("image/*")},enabled=!busy){Text(t[0])}
  if(!fullColor){
+ Row(horizontalArrangement=Arrangement.spacedBy(4.dp)){for(i in 0..2){val preset=listOf(Triple(8,320,160),Triple(16,480,100),Triple(24,720,65))[i];FilterChip(colors==preset.first&&detail==preset.second&&minimum==preset.third,{colors=preset.first;detail=preset.second;minimum=preset.third;result=null},{Text(complexityLabels[i])},modifier=Modifier.weight(1f),enabled=!busy)}}
+ Text("${complexityLabels[3]}: ${(lineMm*100).roundToInt()/100f} mm")
+ Slider(lineMm,{lineMm=it},valueRange=0.15f..0.6f,enabled=!busy)
  Text("${t[1]}: $colors");Slider(colors.toFloat(),{colors=it.roundToInt();result=null},valueRange=4f..48f,steps=43,enabled=!busy)
  Text("${t[2]}: $detail");Slider(detail.toFloat(),{detail=it.roundToInt();result=null},valueRange=240f..800f,enabled=!busy)
  Text("${t[3]}: $minimum");Slider(minimum.toFloat(),{minimum=it.roundToInt();result=null},valueRange=20f..500f,enabled=!busy)
@@ -110,13 +115,13 @@ internal fun NumberPaintingEditor(lang:String,fullColor:Boolean=false,selectedId
  val layout=if(!fullColor&&fitOne){source?.let{b->val paper=SheetLayout(1.0,1.0,a3,landscape);val scale=minOf(paper.usableW.toDouble()/b.width,paper.usableH.toDouble()/b.height);SheetLayout(minOf(paper.usableW.toDouble(),b.width*scale),minOf(paper.usableH.toDouble(),b.height*scale),a3,landscape,true)}}else if(w!=null&&h!=null&&w in 0.1..1000.0&&h in 0.1..1000.0)SheetLayout(w*10,h*10,a3,!fullColor&&landscape)else null
  Button(onClick={val plan=layout?:return@Button;val data=result;val image=isolated?:source;if(fullColor&&image==null||!fullColor&&data==null)return@Button;busy=true;scope.launch{
   var temp:java.io.File?=null
-  try{val file=withContext(Dispatchers.IO){java.io.File.createTempFile("painting-", ".pdf",context.cacheDir).also{temp=it;it.outputStream().use{out->if(fullColor)exportColorPrint(requireNotNull(image),plan,out)else exportNumberPainting(requireNotNull(data),plan,out)}}};pending=file;saver.launch(if(fullColor)"makeit-color.pdf" else "makeit-painting.pdf")}
+  try{val file=withContext(Dispatchers.IO){java.io.File.createTempFile("painting-", ".pdf",context.cacheDir).also{temp=it;it.outputStream().use{out->if(fullColor)exportColorPrint(requireNotNull(image),plan,out)else exportNumberPainting(requireNotNull(data),plan,out,lineMm)}}};pending=file;saver.launch(if(fullColor)"makeit-color.pdf" else "makeit-painting.pdf")}
   catch(e:Exception){temp?.delete();pending=null;status=t[11];busy=false}
  }},enabled=!busy&&(if(fullColor)source!=null else result!=null)&&layout!=null&&layout.count in 1..400){Text(t[8])}
  val saveLabel=mapOf("en" to "Save project","ru" to "Сохранить проект","fi" to "Tallenna projekti","et" to "Salvesta projekt","sv" to "Spara projekt","de" to "Projekt speichern","fr" to "Enregistrer le projet","pl" to "Zapisz projekt","es" to "Guardar proyecto","it" to "Salva progetto","lv" to "Saglabāt projektu","lt" to "Išsaugoti projektą","nb" to "Lagre prosjekt","da" to "Gem projekt").getValue(lang)
  var projectName by remember{mutableStateOf("")}
  OutlinedTextField(projectName,{projectName=it},label={Text(saveLabel)},singleLine=true,enabled=!busy)
- Button(onClick={val b=source?:return@Button;val mask=isolated;val j=org.json.JSONObject().put("name",projectName.ifBlank{if(fullColor)"Color" else "Painting"}).put("fullColor",fullColor).put("width",width).put("height",height).put("a3",a3).put("landscape",landscape).put("fitOne",fitOne).put("colors",colors).put("detail",detail).put("minimum",minimum);busy=true;scope.launch{try{withContext(Dispatchers.IO){creativeSave(context,b,mask,j)};status=t[10]}catch(e:Exception){status=t[11]}finally{busy=false}}},enabled=!busy&&source!=null&&layout!=null){Text(saveLabel)}
+ Button(onClick={val b=source?:return@Button;val mask=isolated;val j=org.json.JSONObject().put("name",projectName.ifBlank{if(fullColor)"Color" else "Painting"}).put("fullColor",fullColor).put("width",width).put("height",height).put("a3",a3).put("lineMm",lineMm.toDouble()).put("landscape",landscape).put("fitOne",fitOne).put("colors",colors).put("detail",detail).put("minimum",minimum);busy=true;scope.launch{try{withContext(Dispatchers.IO){creativeSave(context,b,mask,j)};status=t[10]}catch(e:Exception){status=t[11]}finally{busy=false}}},enabled=!busy&&source!=null&&layout!=null){Text(saveLabel)}
  if(busy){CircularProgressIndicator();Text(t[9])}
  if(status.isNotEmpty())Text(status)
 }
