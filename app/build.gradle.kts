@@ -8,6 +8,7 @@ android {
  namespace = "fi.vladi.makeit"
  compileSdk = 35
  defaultConfig { applicationId = "fi.vladi.makeit"; minSdk = 24; targetSdk = 35; versionCode = 1; versionName = "0.1.0" }
+ sourceSets.getByName("main").assets.srcDir(rootProject.file("ideas"))
  buildFeatures { compose = true }
  splits { abi { isEnable = true; reset(); include("arm64-v8a"); isUniversalApk = false } }
 }
