@@ -34,7 +34,7 @@ private val paintLabels=mapOf(
 "nb" to "Velg bilde|Farger|Detaljer|Minste område|Opprett|Fargevisning|Bredde (cm)|Høyde (cm)|Eksporter PDF|Behandler|Ferdig|Feil",
 "da" to "Vælg billede|Farver|Detaljer|Mindste område|Opret|Farvevisning|Bredde (cm)|Højde (cm)|Eksportér PDF|Behandler|Færdig|Fejl")
 @Composable
-internal fun NumberPaintingEditor(lang:String){
+internal fun NumberPaintingEditor(lang:String,fullColor:Boolean=false,selectedIdea:Int?=null){
  val t=(paintLabels[lang]?:paintLabels.getValue("en")).split('|')
  val context=LocalContext.current;val scope=rememberCoroutineScope()
  var source by remember{mutableStateOf<Bitmap?>(null)}
@@ -49,6 +49,7 @@ internal fun NumberPaintingEditor(lang:String){
  var busy by remember{mutableStateOf(false)}
  var status by remember{mutableStateOf("")}
  var pending by remember{mutableStateOf<java.io.File?>(null)}
+ LaunchedEffect(selectedIdea){if(selectedIdea!=null){busy=true;try{val b=withContext(Dispatchers.IO){ideaBitmap(context,selectedIdea)};source=b;result=null;height="30";width=(30.0*b.width/b.height).toString()}catch(e:Exception){status=t[11]}finally{busy=false}}}
  val picker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()){uri->
   if(uri!=null){busy=true;scope.launch{
    try{
@@ -56,7 +57,7 @@ internal fun NumberPaintingEditor(lang:String){
      val options=BitmapFactory.Options().apply{inJustDecodeBounds=true}
      context.contentResolver.openInputStream(uri)?.use{BitmapFactory.decodeStream(it,null,options)}
      var sample=1
-     while(maxOf(options.outWidth,options.outHeight)/sample>1600)sample*=2
+     while(maxOf(options.outWidth,options.outHeight)/sample>(if(fullColor)4096 else 1600))sample*=2
      context.contentResolver.openInputStream(uri)?.use{BitmapFactory.decodeStream(it,null,BitmapFactory.Options().apply{inSampleSize=sample})}?:error("image")
     }
     source=b;result=null;height="30";width=(30.0*b.width/b.height).toString();status=""
@@ -69,6 +70,7 @@ internal fun NumberPaintingEditor(lang:String){
   else busy=false
  }
  Button(onClick={picker.launch("image/*")},enabled=!busy){Text(t[0])}
+ if(!fullColor){
  Text("${t[1]}: $colors");Slider(colors.toFloat(),{colors=it.roundToInt();result=null},valueRange=4f..48f,steps=43,enabled=!busy)
  Text("${t[2]}: $detail");Slider(detail.toFloat(),{detail=it.roundToInt();result=null},valueRange=240f..800f,enabled=!busy)
  Text("${t[3]}: $minimum");Slider(minimum.toFloat(),{minimum=it.roundToInt();result=null},valueRange=20f..500f,enabled=!busy)
@@ -81,16 +83,17 @@ internal fun NumberPaintingEditor(lang:String){
   Image(image.asImageBitmap(),null,Modifier.fillMaxWidth().aspectRatio(image.width.toFloat()/image.height))
   for(row in r.palette.indices.chunked(6)){Row(horizontalArrangement=Arrangement.spacedBy(4.dp)){for(i in row){Column(Modifier.weight(1f)){Box(Modifier.fillMaxWidth().height(24.dp).background(Color(r.palette[i])));Text((i+1).toString())}}}}
  }else source?.let{Image(it.asImageBitmap(),null,Modifier.fillMaxWidth().aspectRatio(it.width.toFloat()/it.height))}
- OutlinedTextField(width,{width=it},label={Text(t[6])},singleLine=true,enabled=!busy)
- OutlinedTextField(height,{height=it},label={Text(t[7])},singleLine=true,enabled=!busy)
+ }else source?.let{Image(it.asImageBitmap(),null,Modifier.fillMaxWidth().aspectRatio(it.width.toFloat()/it.height))}
+ OutlinedTextField(width,{width=it;val b=source;val n=it.replace(',','.').toDoubleOrNull();if(b!=null&&n!=null)height=(n*b.height/b.width).toString()},label={Text(t[6])},singleLine=true,enabled=!busy)
+ OutlinedTextField(height,{height=it;val b=source;val n=it.replace(',','.').toDoubleOrNull();if(b!=null&&n!=null)width=(n*b.width/b.height).toString()},label={Text(t[7])},singleLine=true,enabled=!busy)
  Row{FilterChip(!a3,{a3=false},{Text("A4")});Spacer(Modifier.width(8.dp));FilterChip(a3,{a3=true},{Text("A3")})}
  val w=width.replace(',','.').toDoubleOrNull();val h=height.replace(',','.').toDoubleOrNull()
  val layout=if(w!=null&&h!=null&&w in 0.1..1000.0&&h in 0.1..1000.0)SheetLayout(w*10,h*10,a3)else null
- Button(onClick={val plan=layout?:return@Button;val data=result?:return@Button;busy=true;scope.launch{
+ Button(onClick={val plan=layout?:return@Button;val data=result;val image=source;if(fullColor&&image==null||!fullColor&&data==null)return@Button;busy=true;scope.launch{
   var temp:java.io.File?=null
-  try{val file=withContext(Dispatchers.IO){java.io.File.createTempFile("painting-", ".pdf",context.cacheDir).also{temp=it;it.outputStream().use{out->exportNumberPainting(data,plan,out)}}};pending=file;saver.launch("makeit-painting.pdf")}
+  try{val file=withContext(Dispatchers.IO){java.io.File.createTempFile("painting-", ".pdf",context.cacheDir).also{temp=it;it.outputStream().use{out->if(fullColor)exportColorPrint(requireNotNull(image),plan,out)else exportNumberPainting(requireNotNull(data),plan,out)}}};pending=file;saver.launch(if(fullColor)"makeit-color.pdf" else "makeit-painting.pdf")}
   catch(e:Exception){temp?.delete();pending=null;status=t[11];busy=false}
- }},enabled=!busy&&r!=null&&layout!=null&&layout.count in 1..400){Text(t[8])}
+ }},enabled=!busy&&(if(fullColor)source!=null else r!=null)&&layout!=null&&layout.count in 1..400){Text(t[8])}
  if(busy){CircularProgressIndicator();Text(t[9])}
  if(status.isNotEmpty())Text(status)
 }
