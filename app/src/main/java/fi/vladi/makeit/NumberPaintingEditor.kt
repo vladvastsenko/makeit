@@ -6,6 +6,11 @@ import android.graphics.Paint
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -89,9 +94,9 @@ internal fun NumberPaintingEditor(lang:String,fullColor:Boolean=false,selectedId
  val r=result
  if(r!=null){
   Row{Checkbox(colorView,{colorView=it});Text(t[5],Modifier.padding(top=12.dp))}
-  val numbered=remember(r){r.outline.copy(Bitmap.Config.ARGB_8888,true).apply{val c=Canvas(this);val p=Paint(Paint.ANTI_ALIAS_FLAG).apply{color=android.graphics.Color.BLACK;textAlign=Paint.Align.CENTER;textSize=8f};for(region in r.regions)c.drawText((region.color+1).toString(),region.x.toFloat(),region.y-(p.ascent()+p.descent())/2,p)}}
+  val numbered=remember(r,lineMm){Bitmap.createBitmap(r.outline.width*2,r.outline.height*2,Bitmap.Config.ARGB_8888).apply{val c=Canvas(this);c.drawColor(android.graphics.Color.WHITE);c.scale(2f,2f);val p=Paint(Paint.ANTI_ALIAS_FLAG).apply{color=android.graphics.Color.BLACK;style=Paint.Style.STROKE;strokeWidth=lineMm*3;strokeJoin=Paint.Join.ROUND;strokeCap=Paint.Cap.ROUND};c.drawPath(r.boundaries,p);p.style=Paint.Style.FILL;p.textAlign=Paint.Align.CENTER;for(region in r.regions){val label=(region.color+1).toString();p.textSize=8f;val extent=kotlin.math.hypot(p.measureText(label)/2f,(p.descent()-p.ascent())/2f);p.textSize=minOf(8f,8f*region.clearance*0.65f/extent);if(p.textSize>=2f)c.drawText(label,region.x+0.5f,region.y+0.5f-(p.ascent()+p.descent())/2,p)}}}
   val image=if(colorView)r.preview else numbered
-  Image(image.asImageBitmap(),null,Modifier.fillMaxWidth().aspectRatio(image.width.toFloat()/image.height))
+  ZoomPaintingPreview(image)
   for(row in r.palette.indices.chunked(6)){Row(horizontalArrangement=Arrangement.spacedBy(4.dp)){for(i in row){Column(Modifier.weight(1f)){Box(Modifier.fillMaxWidth().height(24.dp).background(Color(r.palette[i])));Text((i+1).toString())}}}}
  }else source?.let{Image(it.asImageBitmap(),null,Modifier.fillMaxWidth().aspectRatio(it.width.toFloat()/it.height))}
  }else {
@@ -124,4 +129,22 @@ internal fun NumberPaintingEditor(lang:String,fullColor:Boolean=false,selectedId
  Button(onClick={val b=source?:return@Button;val mask=isolated;val j=org.json.JSONObject().put("name",projectName.ifBlank{if(fullColor)"Color" else "Painting"}).put("fullColor",fullColor).put("width",width).put("height",height).put("a3",a3).put("lineMm",lineMm.toDouble()).put("landscape",landscape).put("fitOne",fitOne).put("colors",colors).put("detail",detail).put("minimum",minimum);busy=true;scope.launch{try{withContext(Dispatchers.IO){creativeSave(context,b,mask,j)};status=t[10]}catch(e:Exception){status=t[11]}finally{busy=false}}},enabled=!busy&&source!=null&&layout!=null){Text(saveLabel)}
  if(busy){CircularProgressIndicator();Text(t[9])}
  if(status.isNotEmpty())Text(status)
+}
+
+@Composable
+private fun ZoomPaintingPreview(image:Bitmap){
+ var zoom by remember(image){mutableStateOf(1f)}
+ var offset by remember(image){mutableStateOf(Offset.Zero)}
+ BoxWithConstraints(Modifier.fillMaxWidth().aspectRatio(image.width.toFloat()/image.height).clipToBounds()){
+  val density=androidx.compose.ui.platform.LocalDensity.current
+  val w=with(density){maxWidth.toPx()};val h=with(density){maxHeight.toPx()}
+  Image(image.asImageBitmap(),null,Modifier.fillMaxSize().pointerInput(image,w,h){
+   detectTransformGestures{_,pan,scale,_->val next=(zoom*scale).coerceIn(1f,6f);val limitX=w*(next-1)/2;val limitY=h*(next-1)/2;offset=Offset((offset.x+pan.x).coerceIn(-limitX,limitX),(offset.y+pan.y).coerceIn(-limitY,limitY));zoom=next}
+  }.graphicsLayer{scaleX=zoom;scaleY=zoom;translationX=offset.x;translationY=offset.y})
+ }
+ Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
+  OutlinedButton(onClick={zoom=(zoom/1.5f).coerceAtLeast(1f);offset=Offset.Zero}){Text("−")}
+  OutlinedButton(onClick={zoom=1f;offset=Offset.Zero}){Text("${(zoom*100).roundToInt()}%")}
+  OutlinedButton(onClick={zoom=(zoom*1.5f).coerceAtMost(6f);offset=Offset.Zero}){Text("+")}
+ }
 }
