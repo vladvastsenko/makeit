@@ -1,0 +1,137 @@
+[
+  {
+    "category": "girls",
+    "images": [
+      {
+        "id": "girls_1",
+        "galleryNumber": 3,
+        "file": "file_000000000f588210b7873dc923409862.png"
+      },
+      {
+        "id": "girls_2",
+        "galleryNumber": 7,
+        "file": "file_000000004e5c81f4b47a39723e379378.png"
+      },
+      {
+        "id": "girls_3",
+        "galleryNumber": 9,
+        "file": "file_000000005c3c81f480c1c920ebc26725.png"
+      },
+      {
+        "id": "girls_4",
+        "galleryNumber": 15,
+        "file": "file_00000000b91881f4a7e9c8be6388b6c6.png"
+      },
+      {
+        "id": "girls_5",
+        "galleryNumber": 18,
+        "file": "file_00000000c1048210acd5f82708edd82c.png"
+      },
+      {
+        "id": "girls_6",
+        "galleryNumber": 21,
+        "file": "file_00000000d97481f49dc32c8884c58d6e.png"
+      }
+    ]
+  },
+  {
+    "category": "boys",
+    "images": [
+      {
+        "id": "boys_1",
+        "galleryNumber": 4,
+        "file": "file_0000000011dc8210a0283dd1af2d6c9a.png"
+      },
+      {
+        "id": "boys_2",
+        "galleryNumber": 5,
+        "file": "file_0000000017e48210a8d4c894cc5507d6.png"
+      },
+      {
+        "id": "boys_3",
+        "galleryNumber": 8,
+        "file": "file_0000000057408210bda7bbd50c350685.png"
+      },
+      {
+        "id": "boys_4",
+        "galleryNumber": 11,
+        "file": "file_0000000084fc81f4b26e86f4ecef5e3d.png"
+      },
+      {
+        "id": "boys_5",
+        "galleryNumber": 13,
+        "file": "file_000000008d38821097212ecdd6766453.png"
+      },
+      {
+        "id": "boys_6",
+        "galleryNumber": 16,
+        "file": "file_00000000c06481f4b5257ed8695be41f.png"
+      }
+    ]
+  },
+  {
+    "category": "pairs",
+    "images": [
+      {
+        "id": "pairs_1",
+        "galleryNumber": 2,
+        "file": "file_000000000b6881f492e77186ceb23e5a.png"
+      },
+      {
+        "id": "pairs_2",
+        "galleryNumber": 6,
+        "file": "file_0000000019888246bde2490c590d02e5.png"
+      },
+      {
+        "id": "pairs_3",
+        "galleryNumber": 10,
+        "file": "file_00000000824c82109a1d59f916f37489.png"
+      },
+      {
+        "id": "pairs_4",
+        "galleryNumber": 17,
+        "file": "file_00000000c0bc81f48a7bd42f845b01af.png"
+      },
+      {
+        "id": "pairs_5",
+        "galleryNumber": 20,
+        "file": "file_00000000d3d081f49a17b689055b6754.png"
+      },
+      {
+        "id": "pairs_6",
+        "galleryNumber": 22,
+        "file": "file_00000000fbbc81f48035f5759714e6ac.png"
+      }
+    ]
+  },
+  {
+    "category": "animals",
+    "images": [
+      {
+        "id": "animals_1",
+        "galleryNumber": 1,
+        "file": "file_00000000045c81f4a1943160abca2e86.png"
+      },
+      {
+        "id": "animals_2",
+        "galleryNumber": 14,
+        "file": "file_000000009af881f492113618e12b7093.png"
+      }
+    ]
+  },
+  {
+    "category": "christmas",
+    "images": [
+      {
+        "id": "christmas_1",
+        "galleryNumber": 12,
+        "file": "file_00000000873c821098aad9396a8d7fbc.png"
+      },
+      {
+        "id": "christmas_2",
+        "galleryNumber": 19,
+        "file": "file_00000000cb8081f49c81231fb658cc4e.png"
+      }
+    ]
+  }
+]
