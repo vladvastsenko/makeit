@@ -94,7 +94,8 @@ fun PatternEditor(lang: String, openProjects:Boolean=false, selectedProject:Stri
  LaunchedEffect(Unit){
   runCatching{
    if(selectedIdea!=null){
-    bitmap=ideaBitmap(selectedIdea);projectName=ideaName(lang,selectedIdea);width="30";height="30";outline=false;readyTemplate=true
+    val original=withContext(Dispatchers.IO){ideaBitmap(context,selectedIdea)}
+    bitmap=original;projectName=ideaName(context,lang,selectedIdea);height="30";width=(30.0*original.width/original.height).toString();outline=true;readyTemplate=false;isolate=true;cutOnly=true
    } else if(draftFile.exists()&&draftImage.exists()){
     val j=readProject(draftFile)
     val b=BitmapFactory.decodeFile(draftImage.path) ?: error("draft")
