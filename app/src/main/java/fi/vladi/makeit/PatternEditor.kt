@@ -31,7 +31,7 @@ import kotlinx.coroutines.withContext
 import kotlin.math.ceil
 
 @Composable
-fun PatternEditor(lang: String, openProjects:Boolean=false, selectedProject:String?=null, onOpenProject:(String)->Unit={}) {
+fun PatternEditor(lang: String, openProjects:Boolean=false, selectedProject:String?=null, onOpenProject:(String)->Unit={}, selectedIdea:Int?=null) {
  val t = editorLabels[lang] ?: editorLabels.getValue("en")
  val context = LocalContext.current
  var uri by remember { mutableStateOf<Uri?>(null) }
@@ -40,6 +40,7 @@ fun PatternEditor(lang: String, openProjects:Boolean=false, selectedProject:Stri
  var width by remember { mutableStateOf("110") }
  var height by remember { mutableStateOf("123") }
  var a3 by remember { mutableStateOf(false) }
+ var readyTemplate by remember { mutableStateOf(false) }
  var outline by remember { mutableStateOf(true) }
  var lockRatio by remember { mutableStateOf(true) }
  var exterior by remember { mutableStateOf(false) }
@@ -89,14 +90,16 @@ fun PatternEditor(lang: String, openProjects:Boolean=false, selectedProject:Stri
  val draftFile=remember{java.io.File(context.filesDir,"draft.json")}
  val draftImage=remember{java.io.File(context.filesDir,"draft.png")}
  var restored by remember{mutableStateOf(false)}
- fun snapshot():org.json.JSONObject=org.json.JSONObject().put("isolate",isolate).put("cutOnly",cutOnly).put("left",left.toDouble()).put("top",top.toDouble()).put("right",right.toDouble()).put("bottom",bottom.toDouble()).put("tolerance",tolerance.toDouble()).put("projectId",projectId ?: "").put("name",projectName).put("width",width).put("height",height).put("a3",a3).put("outline",outline).put("lockRatio",lockRatio).put("exterior",exterior).put("skipBlank",skipBlank).put("threshold",threshold.toDouble()).put("thickness",thickness.toDouble()).put("groups",org.json.JSONArray(groups.toList())).put("strokes",org.json.JSONArray().apply{strokes.forEach{(a,z,e)->put(org.json.JSONArray().put(a.x.toDouble()).put(a.y.toDouble()).put(z.x.toDouble()).put(z.y.toDouble()).put(e))}})
+ fun snapshot():org.json.JSONObject=org.json.JSONObject().put("readyTemplate",readyTemplate).put("isolate",isolate).put("cutOnly",cutOnly).put("left",left.toDouble()).put("top",top.toDouble()).put("right",right.toDouble()).put("bottom",bottom.toDouble()).put("tolerance",tolerance.toDouble()).put("projectId",projectId ?: "").put("name",projectName).put("width",width).put("height",height).put("a3",a3).put("outline",outline).put("lockRatio",lockRatio).put("exterior",exterior).put("skipBlank",skipBlank).put("threshold",threshold.toDouble()).put("thickness",thickness.toDouble()).put("groups",org.json.JSONArray(groups.toList())).put("strokes",org.json.JSONArray().apply{strokes.forEach{(a,z,e)->put(org.json.JSONArray().put(a.x.toDouble()).put(a.y.toDouble()).put(z.x.toDouble()).put(z.y.toDouble()).put(e))}})
  LaunchedEffect(Unit){
   runCatching{
-   if(draftFile.exists()&&draftImage.exists()){
+   if(selectedIdea!=null){
+    bitmap=ideaBitmap(selectedIdea);projectName=ideaName(lang,selectedIdea);width="30";height="30";outline=false;readyTemplate=true
+   } else if(draftFile.exists()&&draftImage.exists()){
     val j=readProject(draftFile)
     val b=BitmapFactory.decodeFile(draftImage.path) ?: error("draft")
     projectId=j.optString("projectId").ifBlank{null};projectName=j.optString("name")
-    isolate=j.optBoolean("isolate");cutOnly=j.optBoolean("cutOnly");left=j.optDouble("left",0.0).toFloat();top=j.optDouble("top",0.0).toFloat();right=j.optDouble("right",1.0).toFloat();bottom=j.optDouble("bottom",1.0).toFloat();tolerance=j.optDouble("tolerance",12.0).toFloat();width=j.getString("width");height=j.getString("height");a3=j.optBoolean("a3");outline=j.optBoolean("outline",true);lockRatio=j.optBoolean("lockRatio",true);exterior=j.optBoolean("exterior");skipBlank=j.optBoolean("skipBlank",true);threshold=j.optDouble("threshold",80.0).toFloat();thickness=j.optDouble("thickness",0.5).toFloat()
+    readyTemplate=j.optBoolean("readyTemplate");isolate=j.optBoolean("isolate");cutOnly=j.optBoolean("cutOnly");left=j.optDouble("left",0.0).toFloat();top=j.optDouble("top",0.0).toFloat();right=j.optDouble("right",1.0).toFloat();bottom=j.optDouble("bottom",1.0).toFloat();tolerance=j.optDouble("tolerance",12.0).toFloat();width=j.getString("width");height=j.getString("height");a3=j.optBoolean("a3");outline=j.optBoolean("outline",true);lockRatio=j.optBoolean("lockRatio",true);exterior=j.optBoolean("exterior");skipBlank=j.optBoolean("skipBlank",true);threshold=j.optDouble("threshold",80.0).toFloat();thickness=j.optDouble("thickness",0.5).toFloat()
     val arr=j.getJSONArray("strokes")
     strokes.clear();groups.clear()
     for(i in 0 until arr.length()){val a=arr.getJSONArray(i);strokes.add(Triple(Offset(a.getDouble(0).toFloat(),a.getDouble(1).toFloat()),Offset(a.getDouble(2).toFloat(),a.getDouble(3).toFloat()),a.getBoolean(4)))}
@@ -130,7 +133,7 @@ fun PatternEditor(lang: String, openProjects:Boolean=false, selectedProject:Stri
  if(j!=null){ try{
  val b=BitmapFactory.decodeFile(java.io.File(dir,j.getString("image")).path) ?: error("image")
  projectId=file.nameWithoutExtension;projectName=j.optString("name",file.nameWithoutExtension)
- isolate=j.optBoolean("isolate");cutOnly=j.optBoolean("cutOnly");left=j.optDouble("left",0.0).toFloat();top=j.optDouble("top",0.0).toFloat();right=j.optDouble("right",1.0).toFloat();bottom=j.optDouble("bottom",1.0).toFloat();tolerance=j.optDouble("tolerance",12.0).toFloat();width=j.getString("width");height=j.getString("height");a3=j.optBoolean("a3");threshold=j.optDouble("threshold",80.0).toFloat();exterior=j.optBoolean("exterior");thickness=j.optDouble("thickness",0.5).toFloat();skipBlank=j.optBoolean("skipBlank",true);outline=j.optBoolean("outline",true);lockRatio=j.optBoolean("lockRatio",true)
+ readyTemplate=j.optBoolean("readyTemplate");isolate=j.optBoolean("isolate");cutOnly=j.optBoolean("cutOnly");left=j.optDouble("left",0.0).toFloat();top=j.optDouble("top",0.0).toFloat();right=j.optDouble("right",1.0).toFloat();bottom=j.optDouble("bottom",1.0).toFloat();tolerance=j.optDouble("tolerance",12.0).toFloat();width=j.getString("width");height=j.getString("height");a3=j.optBoolean("a3");threshold=j.optDouble("threshold",80.0).toFloat();exterior=j.optBoolean("exterior");thickness=j.optDouble("thickness",0.5).toFloat();skipBlank=j.optBoolean("skipBlank",true);outline=j.optBoolean("outline",true);lockRatio=j.optBoolean("lockRatio",true)
  strokes.clear();groups.clear();redo.clear()
  val arr=j.optJSONArray("strokes") ?: org.json.JSONArray()
  for(i in 0 until arr.length()){val a=arr.getJSONArray(i);strokes.add(Triple(Offset(a.getDouble(0).toFloat(),a.getDouble(1).toFloat()),Offset(a.getDouble(2).toFloat(),a.getDouble(3).toFloat()),a.getBoolean(4)))}
@@ -175,7 +178,7 @@ fun PatternEditor(lang: String, openProjects:Boolean=false, selectedProject:Stri
    scope.launch {
     status=try { withContext(Dispatchers.IO){val temp=java.io.File.createTempFile("makeit-", ".pdf",context.cacheDir)
  try {
- temp.outputStream().use{val base=if(outline)image else outlineBitmap(image,threshold.toInt()).let { b -> if(exterior)outerOnly(b) else b }
+ temp.outputStream().use{val base=if(outline||readyTemplate)image else outlineBitmap(image,threshold.toInt()).let { b -> if(exterior)outerOnly(b) else b }
  val edited=base.copy(Bitmap.Config.ARGB_8888,true)
  val canvas=android.graphics.Canvas(edited)
  val pen=android.graphics.Paint().apply { strokeWidth=3f;strokeCap=android.graphics.Paint.Cap.ROUND }
@@ -190,7 +193,7 @@ fun PatternEditor(lang: String, openProjects:Boolean=false, selectedProject:Stri
  }
  var pendingReplace by remember { mutableStateOf<(() -> Unit)?>(null) }
  fun replaceDraft(action:()->Unit){if(bitmap!=null)pendingReplace=action else action()}
- val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { if(it != null) {projectId=null;projectName="";isolate=false;cutOnly=false;left=0f;top=0f;right=1f;bottom=1f;zoom=1f;pan=Offset.Zero;uri=it} }
+ val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { if(it != null) {projectId=null;projectName="";readyTemplate=false;isolate=false;cutOnly=false;left=0f;top=0f;right=1f;bottom=1f;zoom=1f;pan=Offset.Zero;uri=it} }
  LaunchedEffect(uri) {
   val selected = uri ?: return@LaunchedEffect
   bitmap=null
@@ -262,7 +265,7 @@ fun PatternEditor(lang: String, openProjects:Boolean=false, selectedProject:Stri
  try{
  val b=BitmapFactory.decodeFile(java.io.File(dir,j.getString("image")).path) ?: error("image")
  projectId=file.nameWithoutExtension;projectName=name
- isolate=j.optBoolean("isolate");cutOnly=j.optBoolean("cutOnly");left=j.optDouble("left",0.0).toFloat();top=j.optDouble("top",0.0).toFloat();right=j.optDouble("right",1.0).toFloat();bottom=j.optDouble("bottom",1.0).toFloat();tolerance=j.optDouble("tolerance",12.0).toFloat();width=j.getString("width");height=j.getString("height");a3=j.optBoolean("a3");threshold=j.optDouble("threshold",80.0).toFloat();exterior=j.optBoolean("exterior");thickness=j.optDouble("thickness",0.5).toFloat();skipBlank=j.optBoolean("skipBlank",true);outline=j.optBoolean("outline",true);lockRatio=j.optBoolean("lockRatio",true)
+ readyTemplate=j.optBoolean("readyTemplate");isolate=j.optBoolean("isolate");cutOnly=j.optBoolean("cutOnly");left=j.optDouble("left",0.0).toFloat();top=j.optDouble("top",0.0).toFloat();right=j.optDouble("right",1.0).toFloat();bottom=j.optDouble("bottom",1.0).toFloat();tolerance=j.optDouble("tolerance",12.0).toFloat();width=j.getString("width");height=j.getString("height");a3=j.optBoolean("a3");threshold=j.optDouble("threshold",80.0).toFloat();exterior=j.optBoolean("exterior");thickness=j.optDouble("thickness",0.5).toFloat();skipBlank=j.optBoolean("skipBlank",true);outline=j.optBoolean("outline",true);lockRatio=j.optBoolean("lockRatio",true)
  strokes.clear();groups.clear();redo.clear()
  val arr=j.optJSONArray("strokes") ?: org.json.JSONArray()
  for(i in 0 until arr.length()){val a=arr.getJSONArray(i);strokes.add(Triple(Offset(a.getDouble(0).toFloat(),a.getDouble(1).toFloat()),Offset(a.getDouble(2).toFloat(),a.getDouble(3).toFloat()),a.getBoolean(4)))}
@@ -290,7 +293,7 @@ fun PatternEditor(lang: String, openProjects:Boolean=false, selectedProject:Stri
 
  OutlinedTextField(projectName,{projectName=it},label={Text(pm[1])},singleLine=true,modifier=Modifier.fillMaxWidth())
  Button(onClick={replaceDraft{picker.launch("image/*")}},modifier=Modifier.fillMaxWidth()){Text(t[1])}
- if(bitmap!=null){
+ if(bitmap!=null&&!readyTemplate){
  Row(verticalAlignment=androidx.compose.ui.Alignment.CenterVertically){Checkbox(isolate,{isolate=it;if(it)outline=true});Text(seg[0])}
  if(isolate){
  Text(seg[1])
@@ -349,13 +352,13 @@ fun PatternEditor(lang: String, openProjects:Boolean=false, selectedProject:Stri
  }
  Row { Checkbox(editing,{editing=it});Text(options[4],Modifier.padding(top=12.dp)) }
  if(editing){ Row { Checkbox(erase,{erase=it});Text(options[5],Modifier.padding(top=12.dp)) };OutlinedButton(onClick={strokes.clear();groups.clear();redo.clear()}){Text(options[6])} }
- Row { Checkbox(exterior,{exterior=it;outline=true});Text(options[0],Modifier.padding(top=12.dp)) }
+ if(!readyTemplate){ Row { Checkbox(exterior,{exterior=it;outline=true});Text(options[0],Modifier.padding(top=12.dp)) } }
  Row { Checkbox(skipBlank,{skipBlank=it});Text(options[1],Modifier.padding(top=12.dp)) }
  Text(options[2]+" · "+String.format(java.util.Locale.ROOT,"%.1f",thickness)+" mm")
  Slider(thickness,{thickness=it},valueRange=0.2f..1f,steps=7)
  Row { Checkbox(lockRatio,{lockRatio=it});Text(options[3],Modifier.padding(top=12.dp)) }
- Row { Checkbox(checked=outline,onCheckedChange={outline=it}); Text(extra[0],modifier=Modifier.padding(top=12.dp)) }
- if(outline) Slider(value=threshold,onValueChange={threshold=it},valueRange=4f..250f)
+ if(!readyTemplate){ Row { Checkbox(checked=outline,onCheckedChange={outline=it}); Text(extra[0],modifier=Modifier.padding(top=12.dp)) }
+ if(outline) Slider(value=threshold,onValueChange={threshold=it},valueRange=4f..250f) }
  if(failed) Text(t[5],color=MaterialTheme.colorScheme.error)
  OutlinedTextField(width,{width=it; val n=it.replace(',','.').toDoubleOrNull(); val b=bitmap;if(lockRatio&&n!=null&&b!=null)height=(n*b.height/b.width).toString()},label={Text(t[2]+" (cm)")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal),singleLine=true)
  OutlinedTextField(height,{height=it; val n=it.replace(',','.').toDoubleOrNull(); val b=bitmap;if(lockRatio&&n!=null&&b!=null)width=(n*b.width/b.height).toString()},label={Text(t[3]+" (cm)")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Decimal),singleLine=true)
