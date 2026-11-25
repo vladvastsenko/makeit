@@ -37,7 +37,7 @@ private fun catalog(context:Context):List<CatalogImage>{
  return buildList {
   for(c in 0 until json.length()){
    val images=json.getJSONObject(c).getJSONArray("images")
-   for(i in 0 until images.length())add(CatalogImage(c,i+1,images.getJSONObject(i).getString("file")))
+   for(i in 0 until images.length())add(CatalogImage(c,i+1,images.getJSONObject(i).getString("file").removeSuffix(".png")+".webp"))
   }
  }
 }
@@ -74,7 +74,6 @@ fun IdeasCatalog(lang:String,onCreate:(Int)->Unit){
        val b=preview
        if(b!=null)Image(b.asImageBitmap(),name,Modifier.fillMaxWidth().aspectRatio(0.75f),contentScale=ContentScale.Fit)
        else Box(Modifier.fillMaxWidth().aspectRatio(0.75f))
-       Text(name,style=MaterialTheme.typography.bodyMedium)
       }
      }
     }
