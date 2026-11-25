@@ -5,9 +5,9 @@ import java.io.OutputStream
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
-internal class SheetLayout(val width: Double,val height: Double,val a3:Boolean) {
- val paperW=if(a3)297 else 210
- val paperH=if(a3)420 else 297
+internal class SheetLayout(val width: Double,val height: Double,val a3:Boolean,val landscape:Boolean=false,val fitOne:Boolean=false) {
+ val paperW=if(landscape) (if(a3)420 else 297) else (if(a3)297 else 210)
+ val paperH=if(landscape) (if(a3)297 else 210) else (if(a3)420 else 297)
  val usableW=paperW-20
  val usableH=paperH-20
  val stepX=usableW-10
