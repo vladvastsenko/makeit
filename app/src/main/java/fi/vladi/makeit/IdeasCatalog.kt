@@ -75,33 +75,51 @@ internal fun ideaBitmap(id:Int,size:Int=960):Bitmap {
  return b
 }
 private fun ideaPreview(id:Int):Bitmap {
- val size=320
+ val size=480
  val b=Bitmap.createBitmap(size,size,Bitmap.Config.ARGB_8888)
  val c=Canvas(b)
  val p=Paint(Paint.ANTI_ALIAS_FLAG)
- p.shader=android.graphics.LinearGradient(0f,0f,320f,320f,0xFFFFF4DF.toInt(),0xFFD6E5D9.toInt(),android.graphics.Shader.TileMode.CLAMP)
- c.drawRect(0f,0f,320f,320f,p)
- p.shader=null
+ val random=kotlin.random.Random(id+918)
+ fun color(v:Long)=v.toInt()
+ fun line(x:Float,y:Float,x2:Float,y2:Float,col:Int,w:Float=2f){p.shader=null;p.color=col;p.strokeWidth=w;p.style=Paint.Style.STROKE;p.strokeCap=Paint.Cap.ROUND;c.drawLine(x,y,x2,y2,p);p.style=Paint.Style.FILL}
+ fun oval(x:Float,y:Float,rx:Float,ry:Float,col:Int){p.shader=null;p.color=col;c.drawOval(x-rx,y-ry,x+rx,y+ry,p)}
+ val backgrounds=listOf(0xFFEEE1CF,0xFFE2E9E2,0xFFE9DCC9,0xFFECE4D9,0xFFDDD9CE,0xFFE6E1D6)
+ p.shader=android.graphics.LinearGradient(0f,0f,480f,480f,color(backgrounds[id/6]),0xFFB8AA96.toInt(),android.graphics.Shader.TileMode.CLAMP)
+ c.drawPaint(p);p.shader=null
+ for(i in 0..420){val y=random.nextFloat()*480;val x=random.nextFloat()*480;line(x,y,x+20+random.nextFloat()*100,y+random.nextFloat()*3,0x0D634629)}
+ for(y in listOf(118f,242f,365f)){line(0f,y,480f,y+8,0x22775A40,1.5f);line(0f,y+3,480f,y+11,0x33FFFFFF,1f)}
  val path=PathParser.createPathFromPathData(paths[id])
  path.fillType=android.graphics.Path.FillType.EVEN_ODD
- val bounds=android.graphics.RectF()
- path.computeBounds(bounds,true)
- val scale=246f/maxOf(bounds.width(),bounds.height())
- val matrix=android.graphics.Matrix()
- matrix.setScale(scale,scale)
- matrix.postTranslate((size-bounds.width()*scale)/2-bounds.left*scale,(size-bounds.height()*scale)/2-bounds.top*scale)
+ val bounds=android.graphics.RectF();path.computeBounds(bounds,true)
+ val scale=340f/maxOf(bounds.width(),bounds.height())
+ val matrix=android.graphics.Matrix();matrix.setScale(scale,scale)
+ matrix.postTranslate((480-bounds.width()*scale)/2-bounds.left*scale,(480-bounds.height()*scale)/2-bounds.top*scale-5)
  path.transform(matrix)
- val palette=listOf(0xFFB96D3B,0xFF43865D,0xFFFAF6E9,0xFF99643F,0xFFE8B84D,0xFFD6A8B6,0xFF669B67,0xFFCF6749,0xFF6B92B5,0xFFB68BC4,0xFFA47750,0xFFE6B5CE)
- val color=palette[id%palette.size].toInt()
- p.color=0x33000000
- c.save();c.translate(4f,7f);c.drawPath(path,p);c.restore()
- p.shader=android.graphics.LinearGradient(45f,35f,275f,285f,color,android.graphics.Color.rgb((android.graphics.Color.red(color)*0.72).toInt(),(android.graphics.Color.green(color)*0.72).toInt(),(android.graphics.Color.blue(color)*0.72).toInt()),android.graphics.Shader.TileMode.CLAMP)
+ p.color=0x553E2818;p.maskFilter=android.graphics.BlurMaskFilter(15f,android.graphics.BlurMaskFilter.Blur.NORMAL)
+ c.save();c.translate(10f,18f);c.drawPath(path,p);c.restore();p.maskFilter=null
+ for(i in 12 downTo 1){p.color=if(i%3==0)0xFFB68C5D.toInt() else 0xFF805A39.toInt();c.save();c.translate(i*0.48f,i.toFloat());c.drawPath(path,p);c.restore()}
+ val palette=listOf(0xFFC48B55,0xFF527B58,0xFFF5F0DF,0xFFAA744A,0xFFD8AD55,0xFFE2C5B4,0xFF7A9C65,0xFFB64E3E,0xFF7699B5,0xFFB68BC4,0xFFA47750,0xFFE6B5CE,0xFFC99D69,0xFF648D91,0xFFD6B78C,0xFF59775B,0xFF718D52,0xFFEDF0E9,0xFFC98D87,0xFFC49B68,0xFFD3AE7A,0xFFB75D54,0xFFBC946B,0xFFD8B35F)
+ val base=color(palette.getOrElse(id){0xFFD2AB78})
+ p.shader=android.graphics.LinearGradient(70f,55f,410f,420f,base,android.graphics.Color.rgb((android.graphics.Color.red(base)*0.76).toInt(),(android.graphics.Color.green(base)*0.76).toInt(),(android.graphics.Color.blue(base)*0.76).toInt()),android.graphics.Shader.TileMode.CLAMP)
  c.drawPath(path,p);p.shader=null
  c.save();c.clipPath(path)
- p.color=0x16FFFFFF
- for(i in 0..14){val y=i*23f;c.drawLine(0f,y,320f,y+35f,p)}
+ for(i in 0..230){val y=random.nextFloat()*480;val x=random.nextFloat()*480;line(x,y,x+40+random.nextFloat()*160,y+random.nextFloat()*5,if(i%2==0)0x16734A26 else 0x20FFFFFF,0.7f)}
+ // Painted details are illustrative only; the original cutting path is unchanged.
+ when(id){
+  0->{for(y in listOf(218f,251f,284f))oval(240f,y,7f,7f,0xFFF5E9D6.toInt());for(x in listOf(135f,345f))line(x-12,205f,x+12,218f,0xFFF5E9D6.toInt(),5f)}
+  1->{for(i in 0..13){val y=155f+i*15;val x=240f+(random.nextFloat()-.5f)*(y-95);oval(x,y,7f,7f,if(i%2==0)0xFFE6C36C.toInt() else 0xFFC96048.toInt())}}
+  2->{oval(220f,137f,5f,5f,0xFF383B35.toInt());oval(258f,137f,5f,5f,0xFF383B35.toInt());line(240f,151f,265f,157f,0xFFD18A43.toInt(),8f);line(177f,194f,303f,194f,0xFF9C4038.toInt(),18f);for(y in listOf(245f,280f,315f))oval(240f,y,6f,6f,0xFF47463D.toInt())}
+  5,10->{oval(215f,220f,5f,7f,0xFF49382F.toInt());oval(265f,220f,5f,7f,0xFF49382F.toInt());oval(240f,243f,9f,6f,0xFF79554C.toInt())}
+  6->{for(i in 0..9)oval(125f+i*24,220f+random.nextFloat()*35,8f,5f,0xFF4C7047.toInt())}
+  7->{line(150f,225f,330f,225f,0xFFF0D5A9.toInt(),8f);for(x in listOf(155f,325f))oval(x,310f,25f,25f,0xFF393D3C.toInt())}
+  8->{line(195f,290f,285f,290f,0xFFC75E49.toInt(),20f)}
+  9->{for(x in listOf(135f,345f)){oval(x,175f,26f,34f,0xFFEDD6A3.toInt());oval(x,285f,20f,25f,0xFF6C668D.toInt())};line(240f,160f,240f,325f,0xFF675442.toInt(),8f)}
+  13->{oval(300f,190f,5f,5f,0xFF333A35.toInt());line(170f,255f,250f,235f,0x55FFFFFF,5f)}
+  16,22->{line(150f,340f,310f,135f,0x88705235.toInt(),3f)}
+  18->{oval(240f,240f,30f,30f,0xFFE5C16A.toInt())}
+ }
  c.restore()
- p.style=Paint.Style.STROKE;p.strokeWidth=2.5f;p.color=0x884B3828.toInt();c.drawPath(path,p)
+ p.style=Paint.Style.STROKE;p.strokeWidth=1.4f;p.color=0xAA725033.toInt();c.drawPath(path,p)
  return b
 }
 @Composable
