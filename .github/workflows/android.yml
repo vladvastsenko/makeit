@@ -1,4 +1,4 @@
-name: MakeIt optimized offline APKs
+name: makeit offline catalog APKs
 on:
   workflow_dispatch:
   push:
@@ -41,10 +41,12 @@ jobs:
             echo "$abi: $bytes bytes"
             echo "- $abi: $bytes bytes" >> "$GITHUB_STEP_SUMMARY"
           done
+      - name: Prepare phone APK
+        run: cp app/build/outputs/apk/debug/app-arm64-v8a-debug.apk makeit.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: MakeIt-arm64-v8a
-          path: app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
+          name: makeit-arm64-v8a
+          path: makeit.apk
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
