@@ -4,7 +4,7 @@ import android.graphics.pdf.PdfDocument
 import java.io.OutputStream
 import kotlin.math.roundToInt
 
-internal fun exportNumberPainting(result:NumberPainting,layout:SheetLayout,out:OutputStream){
+internal fun exportNumberPainting(result:NumberPainting,layout:SheetLayout,out:OutputStream,lineMm:Float=0.25f){
  require(layout.count in 1..400)
  val doc=PdfDocument()
  val pt=72f/25.4f
@@ -20,7 +20,10 @@ internal fun exportNumberPainting(result:NumberPainting,layout:SheetLayout,out:O
   c.save();c.clipRect(10f,10f,10f+layout.usableW,10f+layout.usableH)
   c.translate(10f-col*layout.stepX+if(layout.fitOne)(layout.usableW-w)/2 else 0f,10f-row*layout.stepY+if(layout.fitOne)(layout.usableH-h)/2 else 0f)
   paint.isFilterBitmap=true
-  c.drawBitmap(result.outline,null,RectF(0f,0f,w,h),paint)
+  val vector=Path(result.boundaries)
+  vector.transform(Matrix().apply{setScale(w/result.outline.width,h/result.outline.height)})
+  paint.style=Paint.Style.STROKE;paint.strokeWidth=lineMm;paint.strokeCap=Paint.Cap.ROUND;paint.strokeJoin=Paint.Join.ROUND
+  c.drawPath(vector,paint);paint.style=Paint.Style.FILL
   paint.textAlign=Paint.Align.CENTER
   for(r in result.regions){
    val x=(r.x+0.5f)*w/result.outline.width;val y=(r.y+0.5f)*h/result.outline.height
