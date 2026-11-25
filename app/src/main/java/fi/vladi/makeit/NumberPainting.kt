@@ -3,7 +3,7 @@ import android.graphics.*
 import kotlin.math.*
 
 internal data class PaintRegion(val x:Int,val y:Int,val color:Int,val area:Int,val clearance:Int)
-internal data class NumberPainting(val preview:Bitmap,val outline:Bitmap,val palette:IntArray,val regions:List<PaintRegion>)
+internal data class NumberPainting(val preview:Bitmap,val outline:Bitmap,val palette:IntArray,val regions:List<PaintRegion>,val boundaries:Path)
 internal fun numberPainting(source:Bitmap,colors:Int,detail:Int,minArea:Int):NumberPainting{
  val scale=minOf(1f,detail.toFloat()/maxOf(source.width,source.height))
  val w=maxOf(1,(source.width*scale).roundToInt());val h=maxOf(1,(source.height*scale).roundToInt())
@@ -58,5 +58,7 @@ internal fun numberPainting(source:Bitmap,colors:Int,detail:Int,minArea:Int):Num
  val flat=IntArray(labels.size){palette[labels[it]]}
  val lines=IntArray(labels.size){Color.WHITE}
  for(i in labels.indices){if((i%w<w-1&&labels[i]!=labels[i+1])||(i+w<labels.size&&labels[i]!=labels[i+w]))lines[i]=Color.BLACK}
- return NumberPainting(Bitmap.createBitmap(flat,w,h,Bitmap.Config.ARGB_8888),Bitmap.createBitmap(lines,w,h,Bitmap.Config.ARGB_8888),palette,regions)
+ val boundaries=Path()
+ for(y in 0 until h)for(x in 0 until w){val i=y*w+x;if(x+1<w&&labels[i]!=labels[i+1]){boundaries.moveTo(x+1f,y.toFloat());boundaries.lineTo(x+1f,y+1f)};if(y+1<h&&labels[i]!=labels[i+w]){boundaries.moveTo(x.toFloat(),y+1f);boundaries.lineTo(x+1f,y+1f)}}
+ return NumberPainting(Bitmap.createBitmap(flat,w,h,Bitmap.Config.ARGB_8888),Bitmap.createBitmap(lines,w,h,Bitmap.Config.ARGB_8888),palette,regions,boundaries)
 }
