@@ -12,6 +12,8 @@ android {
  splits { abi { isEnable = true; reset(); include("arm64-v8a"); isUniversalApk = false } }
 }
 dependencies {
+ implementation("com.google.android.gms:play-services-ads:24.7.0")
+ implementation("com.google.android.ump:user-messaging-platform:3.2.0")
  implementation("org.opencv:opencv:4.10.0")
  implementation(platform("androidx.compose:compose-bom:2024.12.01"))
  implementation("androidx.activity:activity-compose:1.10.0")
