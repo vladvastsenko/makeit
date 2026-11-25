@@ -9,7 +9,7 @@ android {
  compileSdk = 35
  defaultConfig { applicationId = "fi.vladi.makeit"; minSdk = 24; targetSdk = 35; versionCode = 1; versionName = "0.1.0" }
  buildFeatures { compose = true }
- splits { abi { isEnable = true; reset(); include("arm64-v8a", "armeabi-v7a", "x86_64"); isUniversalApk = false } }
+ splits { abi { isEnable = true; reset(); include("arm64-v8a"); isUniversalApk = false } }
 }
 dependencies {
  implementation("org.opencv:opencv:4.10.0")
