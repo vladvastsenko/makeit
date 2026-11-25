@@ -30,7 +30,7 @@ jobs:
           test -s background.png
           cp iconka.png app/src/main/res/drawable-nodpi/makeit_icon.png
           cp background.png app/src/main/res/drawable-nodpi/makeit_background.png
-      - name: Compile ARM64 APK with coloring paper orientation and single-sheet fit
+      - name: Compile ARM64 APK with improved vector coloring and zoom preview
         run: gradle :app:assembleDebug --stacktrace
       - name: Prepare phone APK
         run: |
