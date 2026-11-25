@@ -34,7 +34,7 @@ private val paintLabels=mapOf(
 "nb" to "Velg bilde|Farger|Detaljer|Minste område|Opprett|Fargevisning|Bredde (cm)|Høyde (cm)|Eksporter PDF|Behandler|Ferdig|Feil",
 "da" to "Vælg billede|Farver|Detaljer|Mindste område|Opret|Farvevisning|Bredde (cm)|Højde (cm)|Eksportér PDF|Behandler|Færdig|Fejl")
 @Composable
-internal fun NumberPaintingEditor(lang:String,fullColor:Boolean=false,selectedIdea:Int?=null){
+internal fun NumberPaintingEditor(lang:String,fullColor:Boolean=false,selectedIdea:Int?=null,creativeId:String?=null){
  val t=(paintLabels[lang]?:paintLabels.getValue("en")).split('|')
  val context=LocalContext.current;val scope=rememberCoroutineScope()
  var isolated by remember{mutableStateOf<Bitmap?>(null)}
@@ -51,6 +51,7 @@ internal fun NumberPaintingEditor(lang:String,fullColor:Boolean=false,selectedId
  var busy by remember{mutableStateOf(false)}
  var status by remember{mutableStateOf("")}
  var pending by remember{mutableStateOf<java.io.File?>(null)}
+ LaunchedEffect(creativeId){if(creativeId!=null){busy=true;try{val folder=java.io.File(creativeRoot(context),creativeId);val j=withContext(Dispatchers.IO){creativeSettings(folder)};val b=withContext(Dispatchers.IO){creativeImage(folder,"source.png")?:error("image")};source=b;isolated=withContext(Dispatchers.IO){creativeImage(folder,"isolated.png")};width=j.getString("width");height=j.getString("height");a3=j.getBoolean("a3");colors=j.optInt("colors",16);detail=j.optInt("detail",480);minimum=j.optInt("minimum",80);if(!fullColor)result=withContext(Dispatchers.Default){numberPainting(b,colors,detail,minimum)}}catch(e:Exception){status=t[11]}finally{busy=false}}}
  LaunchedEffect(selectedIdea){if(selectedIdea!=null){busy=true;try{val b=withContext(Dispatchers.IO){ideaBitmap(context,selectedIdea)};source=b;isolated=null;result=null;height="30";width=(30.0*b.width/b.height).toString()}catch(e:Exception){status=t[11]}finally{busy=false}}}
  val picker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()){uri->
   if(uri!=null){busy=true;scope.launch{
@@ -103,6 +104,10 @@ internal fun NumberPaintingEditor(lang:String,fullColor:Boolean=false,selectedId
   try{val file=withContext(Dispatchers.IO){java.io.File.createTempFile("painting-", ".pdf",context.cacheDir).also{temp=it;it.outputStream().use{out->if(fullColor)exportColorPrint(requireNotNull(image),plan,out)else exportNumberPainting(requireNotNull(data),plan,out)}}};pending=file;saver.launch(if(fullColor)"makeit-color.pdf" else "makeit-painting.pdf")}
   catch(e:Exception){temp?.delete();pending=null;status=t[11];busy=false}
  }},enabled=!busy&&(if(fullColor)source!=null else r!=null)&&layout!=null&&layout.count in 1..400){Text(t[8])}
+ val saveLabel=mapOf("en" to "Save project","ru" to "Сохранить проект","fi" to "Tallenna projekti","et" to "Salvesta projekt","sv" to "Spara projekt","de" to "Projekt speichern","fr" to "Enregistrer le projet","pl" to "Zapisz projekt","es" to "Guardar proyecto","it" to "Salva progetto","lv" to "Saglabāt projektu","lt" to "Išsaugoti projektą","nb" to "Lagre prosjekt","da" to "Gem projekt").getValue(lang)
+ var projectName by remember{mutableStateOf("")}
+ OutlinedTextField(projectName,{projectName=it},label={Text(saveLabel)},singleLine=true,enabled=!busy)
+ Button(onClick={val b=source?:return@Button;val mask=isolated;val j=org.json.JSONObject().put("name",projectName.ifBlank{if(fullColor)"Color" else "Painting"}).put("fullColor",fullColor).put("width",width).put("height",height).put("a3",a3).put("colors",colors).put("detail",detail).put("minimum",minimum);busy=true;scope.launch{try{withContext(Dispatchers.IO){creativeSave(context,b,mask,j)};status=t[10]}catch(e:Exception){status=t[11]}finally{busy=false}}},enabled=!busy&&source!=null&&layout!=null){Text(saveLabel)}
  if(busy){CircularProgressIndicator();Text(t[9])}
  if(status.isNotEmpty())Text(status)
 }
