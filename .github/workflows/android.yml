@@ -1,4 +1,4 @@
-name: Android APK - GrabCut fix
+name: MakeIt optimized offline APKs
 on:
   workflow_dispatch:
   push:
@@ -31,8 +31,28 @@ jobs:
           cp icon.png app/src/main/res/drawable-nodpi/makeit_icon.png
           cp background.png app/src/main/res/drawable-nodpi/makeit_background.png
       - run: gradle :app:assembleDebug --stacktrace
+      - name: Verify and report APK sizes
+        run: |
+          echo '### APK sizes' >> "$GITHUB_STEP_SUMMARY"
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            file="app/build/outputs/apk/debug/app-$abi-debug.apk"
+            test -s "$file"
+            bytes=$(stat -c%s "$file")
+            echo "$abi: $bytes bytes"
+            echo "- $abi: $bytes bytes" >> "$GITHUB_STEP_SUMMARY"
+          done
       - uses: actions/upload-artifact@v4
         with:
-          name: MakeIt
-          path: app/build/outputs/apk/debug/*.apk
+          name: MakeIt-arm64-v8a
+          path: app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MakeIt-armeabi-v7a
+          path: app/build/outputs/apk/debug/app-armeabi-v7a-debug.apk
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MakeIt-x86_64
+          path: app/build/outputs/apk/debug/app-x86_64-debug.apk
           if-no-files-found: error
