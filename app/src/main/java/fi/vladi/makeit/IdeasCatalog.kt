@@ -74,6 +74,36 @@ internal fun ideaBitmap(id:Int,size:Int=960):Bitmap {
  c.drawPath(path,Paint().apply{color=android.graphics.Color.BLACK;style=Paint.Style.STROKE;strokeWidth=1f/scale;strokeJoin=Paint.Join.ROUND;strokeCap=Paint.Cap.ROUND})
  return b
 }
+private fun ideaPreview(id:Int):Bitmap {
+ val size=320
+ val b=Bitmap.createBitmap(size,size,Bitmap.Config.ARGB_8888)
+ val c=Canvas(b)
+ val p=Paint(Paint.ANTI_ALIAS_FLAG)
+ p.shader=android.graphics.LinearGradient(0f,0f,320f,320f,0xFFFFF4DF.toInt(),0xFFD6E5D9.toInt(),android.graphics.Shader.TileMode.CLAMP)
+ c.drawRect(0f,0f,320f,320f,p)
+ p.shader=null
+ val path=PathParser.createPathFromPathData(paths[id])
+ path.fillType=android.graphics.Path.FillType.EVEN_ODD
+ val bounds=android.graphics.RectF()
+ path.computeBounds(bounds,true)
+ val scale=246f/maxOf(bounds.width(),bounds.height())
+ val matrix=android.graphics.Matrix()
+ matrix.setScale(scale,scale)
+ matrix.postTranslate((size-bounds.width()*scale)/2-bounds.left*scale,(size-bounds.height()*scale)/2-bounds.top*scale)
+ path.transform(matrix)
+ val palette=listOf(0xFFB96D3B,0xFF43865D,0xFFFAF6E9,0xFF99643F,0xFFE8B84D,0xFFD6A8B6,0xFF669B67,0xFFCF6749,0xFF6B92B5,0xFFB68BC4,0xFFA47750,0xFFE6B5CE)
+ val color=palette[id%palette.size].toInt()
+ p.color=0x33000000
+ c.save();c.translate(4f,7f);c.drawPath(path,p);c.restore()
+ p.shader=android.graphics.LinearGradient(45f,35f,275f,285f,color,android.graphics.Color.rgb((android.graphics.Color.red(color)*0.72).toInt(),(android.graphics.Color.green(color)*0.72).toInt(),(android.graphics.Color.blue(color)*0.72).toInt()),android.graphics.Shader.TileMode.CLAMP)
+ c.drawPath(path,p);p.shader=null
+ c.save();c.clipPath(path)
+ p.color=0x16FFFFFF
+ for(i in 0..14){val y=i*23f;c.drawLine(0f,y,320f,y+35f,p)}
+ c.restore()
+ p.style=Paint.Style.STROKE;p.strokeWidth=2.5f;p.color=0x884B3828.toInt();c.drawPath(path,p)
+ return b
+}
 @Composable
 fun IdeasCatalog(lang:String,onCreate:(Int)->Unit){
  val t=names[lang]?:names.getValue("en")
@@ -83,7 +113,7 @@ fun IdeasCatalog(lang:String,onCreate:(Int)->Unit){
  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){
  for(col in 0..1){
  val id=category*6+row*2+col
- val preview=remember(id){ideaBitmap(id,240).asImageBitmap()}
+ val preview=remember(id){ideaPreview(id).asImageBitmap()}
  Card(onClick={onCreate(id)},modifier=Modifier.weight(1f)){
  Column(Modifier.padding(8.dp)){
  Image(preview,t[id+6],Modifier.fillMaxWidth().aspectRatio(1f))
