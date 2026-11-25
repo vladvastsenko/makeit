@@ -12,8 +12,8 @@ internal class SheetLayout(val width: Double,val height: Double,val a3:Boolean) 
  val usableH=paperH-20
  val stepX=usableW-10
  val stepY=usableH-10
- val columns=ceil((width-10).coerceAtLeast(1.0)/stepX).toInt()
- val rows=ceil((height-10).coerceAtLeast(1.0)/stepY).toInt()
+ val columns=1+ceil((width-usableW).coerceAtLeast(0.0)/stepX).toInt()
+ val rows=1+ceil((height-usableH).coerceAtLeast(0.0)/stepY).toInt()
  val count=columns*rows
 }
 internal fun exportPattern(bitmap:Bitmap, layout:SheetLayout, output:OutputStream, skipBlank:Boolean=true, lineMm:Float=0.5f) {
@@ -24,6 +24,10 @@ internal fun exportPattern(bitmap:Bitmap, layout:SheetLayout, output:OutputStrea
  try {
  val pixels=IntArray(bitmap.width*bitmap.height)
  bitmap.getPixels(pixels,0,bitmap.width,0,0,bitmap.width,bitmap.height)
+ for(i in pixels.indices){
+ val p=pixels[i]
+ pixels[i]=if(Color.alpha(p)>=128 && (Color.red(p)+Color.green(p)+Color.blue(p))/3<180)Color.BLACK else Color.WHITE
+ }
  val vector=vectorLines(pixels,bitmap.width,bitmap.height,layout.width.toFloat(),layout.height.toFloat())
  val tiles=(0 until layout.rows).flatMap { row -> (0 until layout.columns).map { col -> row to col } }.filter { (row,col) ->
  if(!skipBlank) true else {
@@ -75,6 +79,7 @@ internal fun exportPattern(bitmap:Bitmap, layout:SheetLayout, output:OutputStrea
  page.canvas.drawText("50 × 50 mm / 100%",20f,78f,paint)
  doc.finishPage(page)
  doc.writeTo(output)
+ output.flush()
  } finally { doc.close() }
 }
 internal fun outlineBitmap(source:Bitmap, threshold:Int):Bitmap {
