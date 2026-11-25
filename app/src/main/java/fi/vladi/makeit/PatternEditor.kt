@@ -168,27 +168,54 @@ fun PatternEditor(lang: String, openProjects:Boolean=false, selectedProject:Stri
  val w=width.replace(',','.').toDoubleOrNull()
  val h=height.replace(',','.').toDoubleOrNull()
  val layout=if(w!=null&&h!=null&&w in 0.1..1000.0&&h in 0.1..1000.0) SheetLayout(w*10,h*10,a3) else null
+ var pendingPdf by remember { mutableStateOf<java.io.File?>(null) }
  val saver=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { dest ->
-  val image=if(outline)processed else bitmap
-  val plan=layout
-  if(dest!=null&&image!=null&&plan!=null&&!processing&&!emptyContour){
-   busy=true
-   status=""
-   val exportStrokes=strokes.toList()
+  val temp=pendingPdf
+  pendingPdf=null
+  if(temp!=null){
    scope.launch {
-    status=try { withContext(Dispatchers.IO){val temp=java.io.File.createTempFile("makeit-", ".pdf",context.cacheDir)
- try {
- temp.outputStream().use{val base=if(outline||readyTemplate)image else outlineBitmap(image,threshold.toInt()).let { b -> if(exterior)outerOnly(b) else b }
- val edited=base.copy(Bitmap.Config.ARGB_8888,true)
- val canvas=android.graphics.Canvas(edited)
- val pen=android.graphics.Paint().apply { strokeWidth=3f;strokeCap=android.graphics.Paint.Cap.ROUND }
- for((a,b,e) in exportStrokes){pen.color=if(e)android.graphics.Color.WHITE else android.graphics.Color.BLACK;canvas.drawLine(a.x*edited.width,a.y*edited.height,b.x*edited.width,b.y*edited.height,pen)}
- exportPattern(edited,plan,it,skipBlank,thickness)}
- check(temp.length()>0)
- context.contentResolver.openOutputStream(dest,"wt")?.use{out->temp.inputStream().use{it.copyTo(out)};out.flush()} ?: error("output")
- } finally {temp.delete()}
- };extra[2] } catch(e:Exception){android.util.Log.e("MakeItPDF","Export failed",e);extra[3]+" ("+e.javaClass.simpleName+")"} finally {busy=false}
+    try {
+     if(dest!=null){
+      withContext(Dispatchers.IO){
+       context.contentResolver.openOutputStream(dest,"wt")?.use{out->temp.inputStream().use{it.copyTo(out)};out.flush()} ?: error("output")
+      }
+      status=extra[2]
+     }
+    }catch(e:Exception){status=extra[3]+" ("+e.javaClass.simpleName+")"}
+    finally{temp.delete();busy=false}
    }
+  }else{busy=false}
+ }
+ fun preparePdf(){
+  val image=(if(outline)processed else bitmap) ?: return
+  val plan=layout ?: return
+  if(busy||processing||emptyContour)return
+  val exportStrokes=strokes.toList()
+  val direct=outline||readyTemplate
+  val sensitivity=threshold.toInt()
+  val outer=exterior
+  val skip=skipBlank
+  val line=thickness
+  val name=projectName.ifBlank{"makeit"}.replace(Regex("[^\\p{L}\\p{N} _-]"),"_")+".pdf"
+  busy=true;status=""
+  scope.launch {
+   var temp:java.io.File?=null
+   try{
+    val prepared=withContext(Dispatchers.IO){
+     val file=java.io.File.createTempFile("makeit-", ".pdf",context.cacheDir)
+     try{
+      val base=if(direct)image else outlineBitmap(image,sensitivity).let{if(outer)outerOnly(it) else it}
+      val edited=base.copy(Bitmap.Config.ARGB_8888,true)
+      val canvas=android.graphics.Canvas(edited)
+      val pen=android.graphics.Paint().apply{strokeWidth=3f;strokeCap=android.graphics.Paint.Cap.ROUND}
+      for((a,b,e) in exportStrokes){pen.color=if(e)android.graphics.Color.WHITE else android.graphics.Color.BLACK;canvas.drawLine(a.x*edited.width,a.y*edited.height,b.x*edited.width,b.y*edited.height,pen)}
+      file.outputStream().use{exportPattern(edited,plan,it,skip,line)}
+      android.os.ParcelFileDescriptor.open(file,android.os.ParcelFileDescriptor.MODE_READ_ONLY).use{fd->android.graphics.pdf.PdfRenderer(fd).use{check(it.pageCount>0)}}
+      file
+     }catch(e:Exception){file.delete();throw e}
+    }
+    temp=prepared;pendingPdf=prepared;saver.launch(name)
+   }catch(e:Exception){temp?.delete();pendingPdf=null;busy=false;status=extra[3]+" ("+e.javaClass.simpleName+")"}
   }
  }
  var pendingReplace by remember { mutableStateOf<(() -> Unit)?>(null) }
@@ -382,7 +409,7 @@ fun PatternEditor(lang: String, openProjects:Boolean=false, selectedProject:Stri
    }
   }
   Button(enabled=bitmap!=null&&!busy,onClick={saveCurrent{}},modifier=Modifier.fillMaxWidth()){Text(more[5])}
-  Button(enabled=preview!=null&&!busy&&!processing&&!emptyContour&&(!outline||processed!=null)&&layout.count<=400,onClick={status="";saver.launch(projectName.ifBlank{"MakeIt"}.replace(Regex("[^\\p{L}\\p{N} _-]"),"_")+".pdf")},modifier=Modifier.fillMaxWidth()){Text(extra[1])}
+  Button(enabled=preview!=null&&!busy&&!processing&&!emptyContour&&(!outline||processed!=null)&&layout.count<=400,onClick={preparePdf()},modifier=Modifier.fillMaxWidth()){Text(extra[1])}
  }
  if(busy) LinearProgressIndicator(Modifier.fillMaxWidth())
  if(status.isNotEmpty()) Text(status)
