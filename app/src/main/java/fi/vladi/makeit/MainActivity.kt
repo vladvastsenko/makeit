@@ -40,7 +40,7 @@ class MainActivity : ComponentActivity() {
       Box(Modifier.fillMaxSize().padding(pad)){
        Image(painterResource(R.drawable.welcome_background),contentDescription=null,modifier=Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
        Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(24.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
-        Text("MakeIt",style=MaterialTheme.typography.displayLarge,color=Color(0xFF243D35))
+        Text("makeit",style=MaterialTheme.typography.displayLarge,color=Color(0xFF243D35))
         Text(labels[7],style=MaterialTheme.typography.titleMedium,color=Color(0xFF243D35))
         Card(shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color(0xFFFFFCF6))){
          Column(Modifier.padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
