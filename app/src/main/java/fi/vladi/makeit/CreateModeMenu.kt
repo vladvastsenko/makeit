@@ -24,11 +24,10 @@ private val modes=mapOf(
 internal fun CreateModeMenu(lang:String,comingSoon:String,onSelect:(Int)->Unit){
  val titles=(modes[lang]?:modes.getValue("en")).split('|')
  titles.forEachIndexed { i,title ->
-  Card(onClick={onSelect(i)},enabled=i!=2,modifier=Modifier.fillMaxWidth()){
+  Card(onClick={onSelect(i)},modifier=Modifier.fillMaxWidth()){
    Column(Modifier.padding(24.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
     Text(listOf("✂","▦","▣")[i],style=MaterialTheme.typography.headlineLarge)
     Text(title,style=MaterialTheme.typography.titleLarge)
-    if(i==2)Text(comingSoon,style=MaterialTheme.typography.bodySmall)
    }
   }
  }
