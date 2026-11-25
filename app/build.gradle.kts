@@ -27,6 +27,9 @@ val prepareIdeaAssets by tasks.registering(Exec::class) {
  val output = layout.buildDirectory.dir("generated/ideaAssets")
  inputs.dir(originals)
  outputs.dir(output)
- commandLine("python3", rootProject.file("scripts/prepare_ideas.py").absolutePath, originals.absolutePath, output.get().asFile.absolutePath)
+ val script = rootProject.file("scripts/prepare_ideas.py")
+ inputs.file(script)
+ val venv = layout.buildDirectory.dir("ideaPython").get().asFile
+ commandLine("bash", "-c", "python3 -m venv \"\$1\" && \"\$1/bin/python\" -m pip install --disable-pip-version-check Pillow==11.3.0 && \"\$1/bin/python\" \"\$2\" \"\$3\" \"\$4\"", "prepare-ideas", venv.absolutePath, script.absolutePath, originals.absolutePath, output.get().asFile.absolutePath)
 }
 tasks.named("preBuild") { dependsOn(prepareIdeaAssets) }
