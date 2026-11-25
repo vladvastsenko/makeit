@@ -18,7 +18,7 @@ internal fun exportNumberPainting(result:NumberPainting,layout:SheetLayout,out:O
   paint.color=Color.BLACK;paint.textSize=3f;paint.textAlign=Paint.Align.LEFT
   c.drawText("$index / ${layout.count}  R${row+1} C${col+1}  100%",10f,7f,paint)
   c.save();c.clipRect(10f,10f,10f+layout.usableW,10f+layout.usableH)
-  c.translate(10f-col*layout.stepX,10f-row*layout.stepY)
+  c.translate(10f-col*layout.stepX+if(layout.fitOne)(layout.usableW-w)/2 else 0f,10f-row*layout.stepY+if(layout.fitOne)(layout.usableH-h)/2 else 0f)
   c.drawBitmap(result.outline,null,RectF(0f,0f,w,h),paint)
   paint.textAlign=Paint.Align.CENTER
   for(r in result.regions){
@@ -31,12 +31,14 @@ internal fun exportNumberPainting(result:NumberPainting,layout:SheetLayout,out:O
  val p=page(layout.count+1);val c=p.canvas;c.scale(pt,pt)
  paint.textAlign=Paint.Align.LEFT;paint.textSize=3.5f
  for(i in result.palette.indices){
-  val x=12f+(i%4)*46f;val y=15f+(i/4)*12f
+  val columns=if(layout.landscape)6 else 4
+  val x=12f+(i%columns)*46f;val y=15f+(i/columns)*12f
   paint.color=result.palette[i];c.drawRect(x,y,x+9,y+8,paint)
   paint.color=Color.BLACK;c.drawText("${i+1} #%06X".format(result.palette[i] and 0xffffff),x+11,y+6,paint)
  }
- paint.style=Paint.Style.STROKE;paint.strokeWidth=.2f;c.drawRect(15f,170f,65f,220f,paint)
- paint.style=Paint.Style.FILL;c.drawText("50 × 50 mm / 100%",15f,226f,paint)
+ val calibrationY=if(layout.landscape)125f else 170f
+ paint.style=Paint.Style.STROKE;paint.strokeWidth=.2f;c.drawRect(15f,calibrationY,65f,calibrationY+50f,paint)
+ paint.style=Paint.Style.FILL;c.drawText("50 × 50 mm / 100%",15f,calibrationY+56f,paint)
  doc.finishPage(p);doc.writeTo(out);out.flush()
  }finally{doc.close()}
 }
