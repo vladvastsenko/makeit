@@ -103,7 +103,7 @@ internal fun NumberPaintingEditor(lang:String,fullColor:Boolean=false,selectedId
   var temp:java.io.File?=null
   try{val file=withContext(Dispatchers.IO){java.io.File.createTempFile("painting-", ".pdf",context.cacheDir).also{temp=it;it.outputStream().use{out->if(fullColor)exportColorPrint(requireNotNull(image),plan,out)else exportNumberPainting(requireNotNull(data),plan,out)}}};pending=file;saver.launch(if(fullColor)"makeit-color.pdf" else "makeit-painting.pdf")}
   catch(e:Exception){temp?.delete();pending=null;status=t[11];busy=false}
- }},enabled=!busy&&(if(fullColor)source!=null else r!=null)&&layout!=null&&layout.count in 1..400){Text(t[8])}
+ }},enabled=!busy&&(if(fullColor)source!=null else result!=null)&&layout!=null&&layout.count in 1..400){Text(t[8])}
  val saveLabel=mapOf("en" to "Save project","ru" to "Сохранить проект","fi" to "Tallenna projekti","et" to "Salvesta projekt","sv" to "Spara projekt","de" to "Projekt speichern","fr" to "Enregistrer le projet","pl" to "Zapisz projekt","es" to "Guardar proyecto","it" to "Salva progetto","lv" to "Saglabāt projektu","lt" to "Išsaugoti projektą","nb" to "Lagre prosjekt","da" to "Gem projekt").getValue(lang)
  var projectName by remember{mutableStateOf("")}
  OutlinedTextField(projectName,{projectName=it},label={Text(saveLabel)},singleLine=true,enabled=!busy)
