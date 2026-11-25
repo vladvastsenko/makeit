@@ -1,0 +1,96 @@
+package fi.vladi.makeit
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Paint
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.*
+import kotlin.math.roundToInt
+
+private val paintLabels=mapOf(
+"en" to "Choose image|Colors|Detail|Minimum region|Generate|Color preview|Width (cm)|Height (cm)|Export PDF|Processing|Done|Error",
+"ru" to "Выбрать изображение|Цвета|Детализация|Минимальный фрагмент|Создать|Цветной вид|Ширина (см)|Высота (см)|Экспорт PDF|Обработка|Готово|Ошибка",
+"fi" to "Valitse kuva|Värit|Yksityiskohdat|Pienin alue|Luo|Väriesikatselu|Leveys (cm)|Korkeus (cm)|Vie PDF|Käsitellään|Valmis|Virhe",
+"et" to "Vali pilt|Värvid|Detailsus|Väikseim ala|Loo|Värvivaade|Laius (cm)|Kõrgus (cm)|Ekspordi PDF|Töötlemine|Valmis|Viga",
+"sv" to "Välj bild|Färger|Detaljer|Minsta område|Skapa|Färgvy|Bredd (cm)|Höjd (cm)|Exportera PDF|Bearbetar|Klart|Fel",
+"de" to "Bild wählen|Farben|Details|Mindestfläche|Erstellen|Farbansicht|Breite (cm)|Höhe (cm)|PDF exportieren|Verarbeitung|Fertig|Fehler",
+"fr" to "Choisir une image|Couleurs|Détails|Zone minimale|Créer|Aperçu couleur|Largeur (cm)|Hauteur (cm)|Exporter PDF|Traitement|Terminé|Erreur",
+"pl" to "Wybierz obraz|Kolory|Szczegóły|Minimalny obszar|Utwórz|Podgląd kolorów|Szerokość (cm)|Wysokość (cm)|Eksport PDF|Przetwarzanie|Gotowe|Błąd",
+"es" to "Elegir imagen|Colores|Detalle|Área mínima|Crear|Vista en color|Ancho (cm)|Alto (cm)|Exportar PDF|Procesando|Listo|Error",
+"it" to "Scegli immagine|Colori|Dettagli|Area minima|Crea|Anteprima colore|Larghezza (cm)|Altezza (cm)|Esporta PDF|Elaborazione|Pronto|Errore",
+"lv" to "Izvēlies attēlu|Krāsas|Detalizācija|Minimālais laukums|Izveidot|Krāsu skats|Platums (cm)|Augstums (cm)|Eksportēt PDF|Apstrāde|Gatavs|Kļūda",
+"lt" to "Pasirinkti vaizdą|Spalvos|Detalumas|Mažiausia sritis|Kurti|Spalvų peržiūra|Plotis (cm)|Aukštis (cm)|Eksportuoti PDF|Apdorojama|Atlikta|Klaida",
+"nb" to "Velg bilde|Farger|Detaljer|Minste område|Opprett|Fargevisning|Bredde (cm)|Høyde (cm)|Eksporter PDF|Behandler|Ferdig|Feil",
+"da" to "Vælg billede|Farver|Detaljer|Mindste område|Opret|Farvevisning|Bredde (cm)|Højde (cm)|Eksportér PDF|Behandler|Færdig|Fejl")
+@Composable
+internal fun NumberPaintingEditor(lang:String){
+ val t=(paintLabels[lang]?:paintLabels.getValue("en")).split('|')
+ val context=LocalContext.current;val scope=rememberCoroutineScope()
+ var source by remember{mutableStateOf<Bitmap?>(null)}
+ var result by remember{mutableStateOf<NumberPainting?>(null)}
+ var colors by remember{mutableIntStateOf(16)}
+ var detail by remember{mutableIntStateOf(480)}
+ var minimum by remember{mutableIntStateOf(80)}
+ var width by remember{mutableStateOf("30")}
+ var height by remember{mutableStateOf("30")}
+ var a3 by remember{mutableStateOf(false)}
+ var colorView by remember{mutableStateOf(false)}
+ var busy by remember{mutableStateOf(false)}
+ var status by remember{mutableStateOf("")}
+ var pending by remember{mutableStateOf<java.io.File?>(null)}
+ val picker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()){uri->
+  if(uri!=null){busy=true;scope.launch{
+   try{
+    val b=withContext(Dispatchers.IO){
+     val options=BitmapFactory.Options().apply{inJustDecodeBounds=true}
+     context.contentResolver.openInputStream(uri)?.use{BitmapFactory.decodeStream(it,null,options)}
+     var sample=1
+     while(maxOf(options.outWidth,options.outHeight)/sample>1600)sample*=2
+     context.contentResolver.openInputStream(uri)?.use{BitmapFactory.decodeStream(it,null,BitmapFactory.Options().apply{inSampleSize=sample})}?:error("image")
+    }
+    source=b;result=null;height="30";width=(30.0*b.width/b.height).toString();status=""
+   }catch(e:Exception){status=t[11]}finally{busy=false}
+  }}
+ }
+ val saver=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")){uri->
+  val file=pending;pending=null
+  if(file!=null)scope.launch{try{if(uri!=null){withContext(Dispatchers.IO){context.contentResolver.openOutputStream(uri,"wt")?.use{out->file.inputStream().use{it.copyTo(out)}}?:error("output")};status=t[10]}}catch(e:Exception){status=t[11]}finally{file.delete();busy=false}}
+  else busy=false
+ }
+ Button(onClick={picker.launch("image/*")},enabled=!busy){Text(t[0])}
+ Text("${t[1]}: $colors");Slider(colors.toFloat(),{colors=it.roundToInt();result=null},valueRange=4f..48f,steps=43,enabled=!busy)
+ Text("${t[2]}: $detail");Slider(detail.toFloat(),{detail=it.roundToInt();result=null},valueRange=240f..800f,enabled=!busy)
+ Text("${t[3]}: $minimum");Slider(minimum.toFloat(),{minimum=it.roundToInt();result=null},valueRange=20f..500f,enabled=!busy)
+ Button(onClick={val b=source?:return@Button;busy=true;status="";scope.launch{try{result=withContext(Dispatchers.Default){numberPainting(b,colors,detail,minimum)}}catch(e:Exception){status=t[11]}finally{busy=false}}},enabled=source!=null&&!busy){Text(t[4])}
+ val r=result
+ if(r!=null){
+  Row{Checkbox(colorView,{colorView=it});Text(t[5],Modifier.padding(top=12.dp))}
+  val numbered=remember(r){r.outline.copy(Bitmap.Config.ARGB_8888,true).apply{val c=Canvas(this);val p=Paint(Paint.ANTI_ALIAS_FLAG).apply{color=android.graphics.Color.BLACK;textAlign=Paint.Align.CENTER;textSize=8f};for(region in r.regions)c.drawText((region.color+1).toString(),region.x.toFloat(),region.y-(p.ascent()+p.descent())/2,p)}}
+  val image=if(colorView)r.preview else numbered
+  Image(image.asImageBitmap(),null,Modifier.fillMaxWidth().aspectRatio(image.width.toFloat()/image.height))
+  for(row in r.palette.indices.chunked(6)){Row(horizontalArrangement=Arrangement.spacedBy(4.dp)){for(i in row){Column(Modifier.weight(1f)){Box(Modifier.fillMaxWidth().height(24.dp).background(Color(r.palette[i])));Text((i+1).toString())}}}}
+ }else source?.let{Image(it.asImageBitmap(),null,Modifier.fillMaxWidth().aspectRatio(it.width.toFloat()/it.height))}
+ OutlinedTextField(width,{width=it},label={Text(t[6])},singleLine=true,enabled=!busy)
+ OutlinedTextField(height,{height=it},label={Text(t[7])},singleLine=true,enabled=!busy)
+ Row{FilterChip(!a3,{a3=false},{Text("A4")});Spacer(Modifier.width(8.dp));FilterChip(a3,{a3=true},{Text("A3")})}
+ val w=width.replace(',','.').toDoubleOrNull();val h=height.replace(',','.').toDoubleOrNull()
+ val layout=if(w!=null&&h!=null&&w in 0.1..1000.0&&h in 0.1..1000.0)SheetLayout(w*10,h*10,a3)else null
+ Button(onClick={val plan=layout?:return@Button;val data=result?:return@Button;busy=true;scope.launch{
+  var temp:java.io.File?=null
+  try{val file=withContext(Dispatchers.IO){java.io.File.createTempFile("painting-", ".pdf",context.cacheDir).also{temp=it;it.outputStream().use{out->exportNumberPainting(data,plan,out)}}};pending=file;saver.launch("makeit-painting.pdf")}
+  catch(e:Exception){temp?.delete();pending=null;status=t[11];busy=false}
+ }},enabled=!busy&&r!=null&&layout!=null&&layout.count in 1..400){Text(t[8])}
+ if(busy){CircularProgressIndicator();Text(t[9])}
+ if(status.isNotEmpty())Text(status)
+}
