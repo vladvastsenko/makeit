@@ -8,7 +8,7 @@ android {
  namespace = "fi.vladi.makeit"
  compileSdk = 35
  defaultConfig { applicationId = "fi.vladi.makeit"; minSdk = 24; targetSdk = 35; versionCode = 1; versionName = "0.1.0" }
- sourceSets.getByName("main").assets.srcDir(rootProject.file("ideas"))
+ sourceSets.getByName("main").assets.srcDir(layout.buildDirectory.dir("generated/ideaAssets"))
  buildFeatures { compose = true }
  splits { abi { isEnable = true; reset(); include("arm64-v8a"); isUniversalApk = false } }
 }
@@ -21,3 +21,12 @@ dependencies {
  implementation("androidx.compose.material3:material3")
  implementation("androidx.compose.ui:ui")
 }
+
+val prepareIdeaAssets by tasks.registering(Exec::class) {
+ val originals = rootProject.file("ideas")
+ val output = layout.buildDirectory.dir("generated/ideaAssets")
+ inputs.dir(originals)
+ outputs.dir(output)
+ commandLine("python3", rootProject.file("scripts/prepare_ideas.py").absolutePath, originals.absolutePath, output.get().asFile.absolutePath)
+}
+tasks.named("preBuild") { dependsOn(prepareIdeaAssets) }
