@@ -33,12 +33,13 @@ class MainActivity : ComponentActivity() {
    var lang by remember { mutableStateOf((prefs.getString("language", "en") ?: "en").takeIf { it in languages } ?: "en") }
    var guest by remember { mutableStateOf(prefs.getBoolean("guest", false)) }
    var page by remember { mutableIntStateOf(0) }
+   var createMode by remember { mutableIntStateOf(-1) }
    var selectedIdea by remember { mutableStateOf<Int?>(null) }
    var selectedProject by remember { mutableStateOf<String?>(null) }
    LaunchedEffect(guest){if(guest)ads.start()}
    val labels = translations[lang] ?: translations.getValue("en")
    MaterialTheme(colorScheme = lightColorScheme(primary=Color(0xFF243D35), secondary=Color(0xFFB45D30), background=Color(0xFFF7F3EB), surface=Color(0xFFFFFCF6), surfaceVariant=Color(0xFFE5EAE1), tertiary=Color(0xFFB45D30))) {
-    Scaffold(bottomBar = { if(guest) Column { if(ads.ready && page in listOf(0,1,3)) MakeitBanner(); NavigationBar(containerColor=Color(0xFFFFFCF6)) { labels.take(5).forEachIndexed { i, s -> NavigationBarItem(selected=page==i,onClick={selectedIdea=null;selectedProject=null;page=i},icon={Text(listOf("⌂","☆","+","▣","⚙")[i],fontSize=23.sp)},label={Text(s,fontSize=10.sp)}) } } } }) { pad ->
+    Scaffold(bottomBar = { if(guest) Column { if(ads.ready && page in listOf(0,1,3)) MakeitBanner(); NavigationBar(containerColor=Color(0xFFFFFCF6)) { labels.take(5).forEachIndexed { i, s -> NavigationBarItem(selected=page==i,onClick={selectedIdea=null;selectedProject=null;createMode=-1;page=i},icon={Text(listOf("⌂","☆","+","▣","⚙")[i],fontSize=23.sp)},label={Text(s,fontSize=10.sp)}) } } } }) { pad ->
      if(!guest){
       Box(Modifier.fillMaxSize().padding(pad)){
        Image(painterResource(R.drawable.welcome_background),contentDescription=null,modifier=Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
@@ -86,8 +87,8 @@ class MainActivity : ComponentActivity() {
        Card(colors=CardDefaults.cardColors(containerColor=Color(0xFF243D35)),shape=RoundedCornerShape(24.dp)) {
         Column(Modifier.fillMaxWidth().padding(24.dp)) { Text("✦",color=Color(0xFFF5AD69),fontSize=48.sp); Text(labels[7],color=Color.White,style=MaterialTheme.typography.headlineMedium) }
        }
-       listOf(2,1,3).forEachIndexed { j,i -> Card(onClick={page=i}, colors=CardDefaults.cardColors(containerColor=listOf(Color(0xFFFFD9B8),Color(0xFFD8E7DC),Color(0xFFDCE4F4))[j]),shape=RoundedCornerShape(20.dp)){Text(labels[i],Modifier.fillMaxWidth().padding(28.dp),style=MaterialTheme.typography.headlineSmall)} }
-      } else if(page==1) { IdeasCatalog(lang) { id -> selectedProject=null;selectedIdea=id;page=2 } } else if(page==2 || page==3) { key(page,selectedIdea){PatternEditor(lang, page==3, selectedProject, { id -> selectedIdea=null;selectedProject=id;page=2 },selectedIdea)} } else { Text(labels[page],style=MaterialTheme.typography.headlineMedium); Text(labels[8]) }
+       listOf(2,1,3).forEachIndexed { j,i -> Card(onClick={createMode=-1;page=i}, colors=CardDefaults.cardColors(containerColor=listOf(Color(0xFFFFD9B8),Color(0xFFD8E7DC),Color(0xFFDCE4F4))[j]),shape=RoundedCornerShape(20.dp)){Text(labels[i],Modifier.fillMaxWidth().padding(28.dp),style=MaterialTheme.typography.headlineSmall)} }
+      } else if(page==1) { IdeasCatalog(lang) { id -> selectedProject=null;selectedIdea=id;createMode=0;page=2 } } else if(page==2 && createMode==-1) { CreateModeMenu(lang,labels[8]) { createMode=it } } else if(page==2 || page==3) { if(page==2) OutlinedButton(onClick={createMode=-1;selectedIdea=null;selectedProject=null}){Text("‹ "+labels[2])}; key(page,selectedIdea){PatternEditor(lang, page==3, selectedProject, { id -> selectedIdea=null;selectedProject=id;createMode=0;page=2 },selectedIdea)} } else { Text(labels[page],style=MaterialTheme.typography.headlineMedium); Text(labels[8]) }
      }
      }
     }
