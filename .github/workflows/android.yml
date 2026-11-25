@@ -30,13 +30,15 @@ jobs:
           test -s background.png
           cp iconka.png app/src/main/res/drawable-nodpi/makeit_icon.png
           cp background.png app/src/main/res/drawable-nodpi/makeit_background.png
-      - name: Compile ARM64 APK with 22 original catalog images
+      - name: Compile ARM64 APK with three creation modes and WebP assets
         run: gradle :app:assembleDebug --stacktrace
       - name: Prepare phone APK
         run: |
           cp app/build/outputs/apk/debug/app-arm64-v8a-debug.apk makeit.apk
           test -s makeit.apk
           ls -lh makeit.apk
+          du -h app/build/generated/ideaAssets
+          unzip -l makeit.apk | tail -1
       - uses: actions/upload-artifact@v4
         with:
           name: makeit
