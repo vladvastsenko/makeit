@@ -46,12 +46,15 @@ internal fun NumberPaintingEditor(lang:String,fullColor:Boolean=false,selectedId
  var minimum by remember{mutableIntStateOf(80)}
  var width by remember{mutableStateOf("30")}
  var height by remember{mutableStateOf("30")}
+ var landscape by remember{mutableStateOf(false)}
+ var fitOne by remember{mutableStateOf(false)}
+ val printLabels=(mapOf("en" to "Portrait|Landscape|Fit on one sheet","ru" to "Книжная|Альбомная|На одном листе","fi" to "Pysty|Vaaka|Sovita yhdelle arkille","et" to "Püstpaigutus|Rõhtpaigutus|Mahuta ühele lehele","sv" to "Stående|Liggande|Anpassa till ett ark","de" to "Hochformat|Querformat|Auf ein Blatt","fr" to "Portrait|Paysage|Sur une feuille","pl" to "Pionowa|Pozioma|Na jednym arkuszu","es" to "Vertical|Horizontal|En una hoja","it" to "Verticale|Orizzontale|Su un foglio","lv" to "Portrets|Ainava|Vienā lapā","lt" to "Vertikali|Horizontali|Viename lape","nb" to "Stående|Liggende|På ett ark","da" to "Stående|Liggende|På ét ark").getValue(lang)).split('|')
  var a3 by remember{mutableStateOf(false)}
  var colorView by remember{mutableStateOf(false)}
  var busy by remember{mutableStateOf(false)}
  var status by remember{mutableStateOf("")}
  var pending by remember{mutableStateOf<java.io.File?>(null)}
- LaunchedEffect(creativeId){if(creativeId!=null){busy=true;try{val folder=java.io.File(creativeRoot(context),creativeId);val j=withContext(Dispatchers.IO){creativeSettings(folder)};val b=withContext(Dispatchers.IO){creativeImage(folder,"source.png")?:error("image")};source=b;isolated=withContext(Dispatchers.IO){creativeImage(folder,"isolated.png")};width=j.getString("width");height=j.getString("height");a3=j.getBoolean("a3");colors=j.optInt("colors",16);detail=j.optInt("detail",480);minimum=j.optInt("minimum",80);if(!fullColor)result=withContext(Dispatchers.Default){numberPainting(b,colors,detail,minimum)}}catch(e:Exception){status=t[11]}finally{busy=false}}}
+ LaunchedEffect(creativeId){if(creativeId!=null){busy=true;try{val folder=java.io.File(creativeRoot(context),creativeId);val j=withContext(Dispatchers.IO){creativeSettings(folder)};val b=withContext(Dispatchers.IO){creativeImage(folder,"source.png")?:error("image")};source=b;isolated=withContext(Dispatchers.IO){creativeImage(folder,"isolated.png")};width=j.getString("width");height=j.getString("height");a3=j.getBoolean("a3");landscape=j.optBoolean("landscape");fitOne=j.optBoolean("fitOne");colors=j.optInt("colors",16);detail=j.optInt("detail",480);minimum=j.optInt("minimum",80);if(!fullColor)result=withContext(Dispatchers.Default){numberPainting(b,colors,detail,minimum)}}catch(e:Exception){status=t[11]}finally{busy=false}}}
  LaunchedEffect(selectedIdea){if(selectedIdea!=null){busy=true;try{val b=withContext(Dispatchers.IO){ideaBitmap(context,selectedIdea)};source=b;isolated=null;result=null;height="30";width=(30.0*b.width/b.height).toString()}catch(e:Exception){status=t[11]}finally{busy=false}}}
  val picker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()){uri->
   if(uri!=null){busy=true;scope.launch{
@@ -94,11 +97,17 @@ internal fun NumberPaintingEditor(lang:String,fullColor:Boolean=false,selectedId
  Image(shown.asImageBitmap(),null,Modifier.fillMaxWidth().aspectRatio(shown.width.toFloat()/shown.height))
  }
  }
+ if(!fitOne||fullColor){
  OutlinedTextField(width,{width=it;val b=source;val n=it.replace(',','.').toDoubleOrNull();if(b!=null&&n!=null)height=(n*b.height/b.width).toString()},label={Text(t[6])},singleLine=true,enabled=!busy)
  OutlinedTextField(height,{height=it;val b=source;val n=it.replace(',','.').toDoubleOrNull();if(b!=null&&n!=null)width=(n*b.width/b.height).toString()},label={Text(t[7])},singleLine=true,enabled=!busy)
+ }
  Row{FilterChip(!a3,{a3=false},{Text("A4")});Spacer(Modifier.width(8.dp));FilterChip(a3,{a3=true},{Text("A3")})}
+ if(!fullColor){
+ Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){FilterChip(!landscape,{landscape=false},{Text(printLabels[0])},enabled=!busy);FilterChip(landscape,{landscape=true},{Text(printLabels[1])},enabled=!busy)}
+ Row{Checkbox(fitOne,{fitOne=it},enabled=!busy);Text(printLabels[2],Modifier.padding(top=12.dp))}
+ }
  val w=width.replace(',','.').toDoubleOrNull();val h=height.replace(',','.').toDoubleOrNull()
- val layout=if(w!=null&&h!=null&&w in 0.1..1000.0&&h in 0.1..1000.0)SheetLayout(w*10,h*10,a3)else null
+ val layout=if(!fullColor&&fitOne){source?.let{b->val paper=SheetLayout(1.0,1.0,a3,landscape);val scale=minOf(paper.usableW.toDouble()/b.width,paper.usableH.toDouble()/b.height);SheetLayout(minOf(paper.usableW.toDouble(),b.width*scale),minOf(paper.usableH.toDouble(),b.height*scale),a3,landscape,true)}}else if(w!=null&&h!=null&&w in 0.1..1000.0&&h in 0.1..1000.0)SheetLayout(w*10,h*10,a3,!fullColor&&landscape)else null
  Button(onClick={val plan=layout?:return@Button;val data=result;val image=isolated?:source;if(fullColor&&image==null||!fullColor&&data==null)return@Button;busy=true;scope.launch{
   var temp:java.io.File?=null
   try{val file=withContext(Dispatchers.IO){java.io.File.createTempFile("painting-", ".pdf",context.cacheDir).also{temp=it;it.outputStream().use{out->if(fullColor)exportColorPrint(requireNotNull(image),plan,out)else exportNumberPainting(requireNotNull(data),plan,out)}}};pending=file;saver.launch(if(fullColor)"makeit-color.pdf" else "makeit-painting.pdf")}
@@ -107,7 +116,7 @@ internal fun NumberPaintingEditor(lang:String,fullColor:Boolean=false,selectedId
  val saveLabel=mapOf("en" to "Save project","ru" to "Сохранить проект","fi" to "Tallenna projekti","et" to "Salvesta projekt","sv" to "Spara projekt","de" to "Projekt speichern","fr" to "Enregistrer le projet","pl" to "Zapisz projekt","es" to "Guardar proyecto","it" to "Salva progetto","lv" to "Saglabāt projektu","lt" to "Išsaugoti projektą","nb" to "Lagre prosjekt","da" to "Gem projekt").getValue(lang)
  var projectName by remember{mutableStateOf("")}
  OutlinedTextField(projectName,{projectName=it},label={Text(saveLabel)},singleLine=true,enabled=!busy)
- Button(onClick={val b=source?:return@Button;val mask=isolated;val j=org.json.JSONObject().put("name",projectName.ifBlank{if(fullColor)"Color" else "Painting"}).put("fullColor",fullColor).put("width",width).put("height",height).put("a3",a3).put("colors",colors).put("detail",detail).put("minimum",minimum);busy=true;scope.launch{try{withContext(Dispatchers.IO){creativeSave(context,b,mask,j)};status=t[10]}catch(e:Exception){status=t[11]}finally{busy=false}}},enabled=!busy&&source!=null&&layout!=null){Text(saveLabel)}
+ Button(onClick={val b=source?:return@Button;val mask=isolated;val j=org.json.JSONObject().put("name",projectName.ifBlank{if(fullColor)"Color" else "Painting"}).put("fullColor",fullColor).put("width",width).put("height",height).put("a3",a3).put("landscape",landscape).put("fitOne",fitOne).put("colors",colors).put("detail",detail).put("minimum",minimum);busy=true;scope.launch{try{withContext(Dispatchers.IO){creativeSave(context,b,mask,j)};status=t[10]}catch(e:Exception){status=t[11]}finally{busy=false}}},enabled=!busy&&source!=null&&layout!=null){Text(saveLabel)}
  if(busy){CircularProgressIndicator();Text(t[9])}
  if(status.isNotEmpty())Text(status)
 }
