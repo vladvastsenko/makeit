@@ -28,15 +28,17 @@ class MainActivity : ComponentActivity() {
  override fun onCreate(savedInstanceState: Bundle?) {
   super.onCreate(savedInstanceState)
   val prefs = getSharedPreferences("makeit", MODE_PRIVATE)
+  val ads=MakeitAds(this)
   setContent {
    var lang by remember { mutableStateOf((prefs.getString("language", "en") ?: "en").takeIf { it in languages } ?: "en") }
    var guest by remember { mutableStateOf(prefs.getBoolean("guest", false)) }
    var page by remember { mutableIntStateOf(0) }
    var selectedIdea by remember { mutableStateOf<Int?>(null) }
    var selectedProject by remember { mutableStateOf<String?>(null) }
+   LaunchedEffect(guest){if(guest)ads.start()}
    val labels = translations[lang] ?: translations.getValue("en")
    MaterialTheme(colorScheme = lightColorScheme(primary=Color(0xFF243D35), secondary=Color(0xFFB45D30), background=Color(0xFFF7F3EB), surface=Color(0xFFFFFCF6), surfaceVariant=Color(0xFFE5EAE1), tertiary=Color(0xFFB45D30))) {
-    Scaffold(bottomBar = { if(guest) NavigationBar(containerColor=Color(0xFFFFFCF6)) { labels.take(5).forEachIndexed { i, s -> NavigationBarItem(selected=page==i,onClick={selectedIdea=null;selectedProject=null;page=i},icon={Text(listOf("⌂","☆","+","▣","⚙")[i],fontSize=23.sp)},label={Text(s,fontSize=10.sp)}) } } }) { pad ->
+    Scaffold(bottomBar = { if(guest) Column { if(ads.ready && page in listOf(0,1,3)) MakeitBanner(); NavigationBar(containerColor=Color(0xFFFFFCF6)) { labels.take(5).forEachIndexed { i, s -> NavigationBarItem(selected=page==i,onClick={selectedIdea=null;selectedProject=null;page=i},icon={Text(listOf("⌂","☆","+","▣","⚙")[i],fontSize=23.sp)},label={Text(s,fontSize=10.sp)}) } } } }) { pad ->
      if(!guest){
       Box(Modifier.fillMaxSize().padding(pad)){
        Image(painterResource(R.drawable.welcome_background),contentDescription=null,modifier=Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
@@ -73,6 +75,7 @@ class MainActivity : ComponentActivity() {
         }
        }
        if(guest) {
+        if(ads.privacyRequired) OutlinedButton(onClick={ads.privacy()},modifier=Modifier.fillMaxWidth()){Text(privacyLabels.getValue(lang))}
         val guide=manualLabels.getValue(lang)
         var showManual by remember{mutableStateOf(false)}
         Button(onClick={showManual=true},modifier=Modifier.fillMaxWidth()){Text(guide[0])}
