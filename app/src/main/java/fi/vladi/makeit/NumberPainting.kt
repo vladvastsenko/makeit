@@ -2,7 +2,7 @@ package fi.vladi.makeit
 import android.graphics.*
 import kotlin.math.*
 
-internal data class PaintRegion(val x:Int,val y:Int,val color:Int,val area:Int)
+internal data class PaintRegion(val x:Int,val y:Int,val color:Int,val area:Int,val clearance:Int)
 internal data class NumberPainting(val preview:Bitmap,val outline:Bitmap,val palette:IntArray,val regions:List<PaintRegion>)
 internal fun numberPainting(source:Bitmap,colors:Int,detail:Int,minArea:Int):NumberPainting{
  val scale=minOf(1f,detail.toFloat()/maxOf(source.width,source.height))
@@ -25,6 +25,7 @@ internal fun numberPainting(source:Bitmap,colors:Int,detail:Int,minArea:Int):Num
  }
  val labels=IntArray(pixels.size){nearest(pixels[it])}
  val queue=IntArray(labels.size)
+ val clearance=IntArray(labels.size)
  fun neighbors(i:Int,action:(Int)->Unit){if(i%w>0)action(i-1);if(i%w<w-1)action(i+1);if(i>=w)action(i-w);if(i+w<labels.size)action(i+w)}
  fun scan(merge:Boolean):List<PaintRegion>{
   val seen=BooleanArray(labels.size);val regions=mutableListOf<PaintRegion>()
@@ -35,13 +36,24 @@ internal fun numberPainting(source:Bitmap,colors:Int,detail:Int,minArea:Int):Num
    while(pos<end){val i=queue[pos++];sx+=(i%w).toLong();sy+=(i/w).toLong();neighbors(i){j->if(labels[j]==k){if(!seen[j]){seen[j]=true;queue[end++]=j}}else border[labels[j]]++}}
    if(merge&&end<minArea){val target=border.indices.filter{it!=k&&border[it]>0}.maxByOrNull{border[it]};if(target!=null)for(q in 0 until end)labels[queue[q]]=target}
    if(!merge){val cx=sx.toDouble()/end;val cy=sy.toDouble()/end;var best=start;var score=Double.MAX_VALUE
-    for(q in 0 until end){val i=queue[q];val dx=i%w-cx;val dy=i/w-cy;var edge=false;neighbors(i){if(labels[it]!=k)edge=true};val d=dx*dx+dy*dy+if(edge)1000000.0 else 0.0;if(d<score){score=d;best=i}}
-    regions.add(PaintRegion(best%w,best/w,k,end))
+    for(q in 0 until end){val i=queue[q];val dx=i%w-cx;val dy=i/w-cy;val d=dx*dx+dy*dy-1000000.0*clearance[i];if(d<score){score=d;best=i}}
+    regions.add(PaintRegion(best%w,best/w,k,end,clearance[best]))
    }
   }
   return regions
  }
- repeat(3){scan(true)}
+ repeat(3){
+  val old=labels.copyOf()
+  for(i in labels.indices){val counts=IntArray(palette.size);val x=i%w;val y=i/w
+   for(yy in maxOf(0,y-1)..minOf(h-1,y+1))for(xx in maxOf(0,x-1)..minOf(w-1,x+1))counts[old[yy*w+xx]]++
+   val best=counts.indices.maxByOrNull{counts[it]}?:old[i]
+   if(counts[best]>=5)labels[i]=best
+  }
+ }
+ repeat(8){scan(true)}
+ for(i in labels.indices){val x=i%w;val y=i/w;var edge=x==0||y==0||x==w-1||y==h-1;neighbors(i){if(labels[it]!=labels[i])edge=true};clearance[i]=if(edge)0 else w+h}
+ for(i in labels.indices){if(i%w>0)clearance[i]=minOf(clearance[i],clearance[i-1]+1);if(i>=w)clearance[i]=minOf(clearance[i],clearance[i-w]+1)}
+ for(i in labels.indices.reversed()){if(i%w<w-1)clearance[i]=minOf(clearance[i],clearance[i+1]+1);if(i+w<labels.size)clearance[i]=minOf(clearance[i],clearance[i+w]+1)}
  val regions=scan(false)
  val flat=IntArray(labels.size){palette[labels[it]]}
  val lines=IntArray(labels.size){Color.WHITE}
