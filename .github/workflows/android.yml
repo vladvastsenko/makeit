@@ -30,7 +30,8 @@ jobs:
           test -s background.png
           cp iconka.png app/src/main/res/drawable-nodpi/makeit_icon.png
           cp background.png app/src/main/res/drawable-nodpi/makeit_background.png
-      - run: gradle :app:assembleDebug --stacktrace
+      - name: Compile ARM64 APK with AdMob test ads
+        run: gradle :app:assembleDebug --stacktrace
       - name: Prepare phone APK
         run: |
           cp app/build/outputs/apk/debug/app-arm64-v8a-debug.apk makeit.apk
