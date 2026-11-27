@@ -21,12 +21,15 @@ private val modes=mapOf(
 "nb" to "Skjæremal|Maling etter tall|Utskrift i full størrelse",
 "da" to "Skæreskabelon|Mal efter tal|Udskrivning i fuld størrelse")
 @Composable
-internal fun CreateModeMenu(lang:String,comingSoon:String,onSelect:(Int)->Unit){
- val titles=(modes[lang]?:modes.getValue("en")).split('|')
+internal fun CreateModeMenu(lang:String,comingSoon:String,slotTitle:String?=null,onSelect:(Int)->Unit){
+ val titles=(modes[lang]?:modes.getValue("en")).split('|')+listOfNotNull(slotTitle)
  titles.forEachIndexed { i,title ->
   Card(onClick={onSelect(i)},modifier=Modifier.fillMaxWidth()){
    Column(Modifier.padding(24.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
-    Text(listOf("✂","▦","▣")[i],style=MaterialTheme.typography.headlineLarge)
+    if(i==3) androidx.compose.foundation.Canvas(Modifier.size(32.dp)){
+ val w=size.width;val h=size.height;val p=androidx.compose.ui.graphics.Path().apply{moveTo(w*.5f,h*.05f);lineTo(w*.95f,h*.28f);lineTo(w*.95f,h*.75f);lineTo(w*.5f,h*.98f);lineTo(w*.05f,h*.75f);lineTo(w*.05f,h*.28f);close();moveTo(w*.05f,h*.28f);lineTo(w*.5f,h*.52f);lineTo(w*.95f,h*.28f);moveTo(w*.5f,h*.52f);lineTo(w*.5f,h*.98f)}
+ drawPath(p,androidx.compose.ui.graphics.Color(0xFF243B35),style=androidx.compose.ui.graphics.drawscope.Stroke(width=2.dp.toPx()))
+ }else Text(listOf("✂","▦","▣")[i],style=MaterialTheme.typography.headlineLarge)
     Text(title,style=MaterialTheme.typography.titleLarge)
    }
   }
