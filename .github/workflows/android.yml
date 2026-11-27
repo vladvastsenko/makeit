@@ -30,7 +30,7 @@ jobs:
           test -s background.png
           cp iconka.png app/src/main/res/drawable-nodpi/makeit_icon.png
           cp background.png app/src/main/res/drawable-nodpi/makeit_background.png
-      - name: Compile ARM64 APK with language flags and dedicated custom 3D entry
+      - name: Compile ARM64 APK with 3D figure creation menu
         run: gradle :app:assembleDebug --stacktrace
       - name: Prepare phone APK
         run: |
