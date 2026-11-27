@@ -13,10 +13,11 @@ internal fun slotShape(id:Int):Path=Path().apply{
  };close()
 }
 internal fun slotPart(id:Int,w:Float,h:Float,gap:Float,top:Boolean):Path{
+ require(w.isFinite()&&h.isFinite()&&gap.isFinite()&&w>0&&h>0&&gap>0&&gap<w*.08f+0.001f)
  val p=slotShape(id);val bounds=RectF();p.computeBounds(bounds,true)
  p.transform(Matrix().apply{setRectToRect(bounds,RectF(0f,0f,w,h),Matrix.ScaleToFit.FILL)})
  val notch=Path().apply{addRect(w/2-gap/2,if(top)-1f else h/2,w/2+gap/2,if(top)h/2 else h+1f,Path.Direction.CW)}
- check(p.op(notch,Path.Op.DIFFERENCE));return p
+ check(p.op(notch,Path.Op.DIFFERENCE));check(!p.isEmpty);return p
 }
 internal fun exportSlots(id:Int,layout:SheetLayout,gap:Float,out:OutputStream){
  require(layout.count in 1..200)
@@ -30,7 +31,7 @@ internal fun exportSlots(id:Int,layout:SheetLayout,gap:Float,out:OutputStream){
  val c=page.canvas;c.scale(pt,pt);paint.color=Color.BLACK;paint.style=Paint.Style.FILL;paint.textSize=3f
  c.drawText("${if(part==0)"A" else "B"}  R${row+1} C${col+1}  100%  /  ${gap} mm",10f,7f,paint)
  c.save();c.clipRect(10f,10f,10f+layout.usableW,10f+layout.usableH);c.translate(10f-col*layout.stepX,10f-row*layout.stepY)
- paint.style=Paint.Style.STROKE;paint.strokeWidth=.25f;c.drawPath(path,paint);c.restore();doc.finishPage(page)
+ paint.style=Paint.Style.STROKE;paint.strokeWidth=.25f;c.drawPath(path,paint);c.restore();paint.strokeWidth=.15f;c.drawRect(10f,10f,10f+layout.usableW,10f+layout.usableH,paint);doc.finishPage(page)
  }}
  val page=doc.startPage(PdfDocument.PageInfo.Builder((layout.paperW*pt).roundToInt(),(layout.paperH*pt).roundToInt(),++index).create())
  page.canvas.scale(pt,pt);paint.style=Paint.Style.STROKE;page.canvas.drawRect(20f,20f,70f,70f,paint);paint.style=Paint.Style.FILL;page.canvas.drawText("50 x 50 mm / 100%",20f,78f,paint);doc.finishPage(page)
