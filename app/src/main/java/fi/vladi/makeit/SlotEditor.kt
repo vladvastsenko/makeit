@@ -58,11 +58,11 @@ private val slotInstructions=mapOf("en" to "Print at 100%. Check the 50 mm squar
 "lt" to "Spausdinkite 100% masteliu. Patikrinkite 50 mm kvadratą. Sujunkite lapus, išpjaukite A ir B ir sujunkite įpjovas 90° kampu. Pirmiausia išbandykite ant atraižos.",
 "nb" to "Skriv ut i 100 %. Kontroller 50 mm-ruten. Sett sammen arkene, skjær ut A og B og sett sporene sammen i 90°. Test først på en restbit.",
 "da" to "Udskriv i 100 %. Kontrollér 50 mm-firkanten. Saml arkene, skær A og B ud og saml slidserne i 90°. Test først på et reststykke.")
-@Composable internal fun SlotEditor(lang:String,id:Int){
+@Composable internal fun SlotEditor(lang:String,id:Int,project:org.json.JSONObject?=null){
  val t=slotText(lang);val context=LocalContext.current;val scope=rememberCoroutineScope()
- var width by remember(id){mutableStateOf("30")};var height by remember(id){mutableStateOf("60")}
- var thickness by remember{mutableStateOf("6")};var tolerance by remember{mutableStateOf("0.2")}
- var a3 by remember{mutableStateOf(false)};var busy by remember{mutableStateOf(false)};var status by remember{mutableStateOf("")};var pending by remember{mutableStateOf<File?>(null)}
+ var width by remember(id){mutableStateOf(project?.optString("width","30")?:"30")};var height by remember(id){mutableStateOf(project?.optString("height","60")?:"60")}
+ var thickness by remember{mutableStateOf(project?.optString("thickness","6")?:"6")};var tolerance by remember{mutableStateOf(project?.optString("tolerance","0.2")?:"0.2")}
+ var a3 by remember{mutableStateOf(project?.optBoolean("a3")?:false)};var busy by remember{mutableStateOf(false)};var status by remember{mutableStateOf("")};var pending by remember{mutableStateOf<File?>(null)}
  val saver=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")){uri->val f=pending;pending=null;scope.launch{try{if(uri!=null&&f!=null){withContext(Dispatchers.IO){context.contentResolver.openOutputStream(uri)?.use{out->f.inputStream().use{it.copyTo(out)}}?:error("output")};status=t[10]}}catch(e:Exception){status=t[11]}finally{f?.delete();busy=false}}}
  Text(t[id+1],style=MaterialTheme.typography.titleLarge)
  Card{Text(slotInstructions[lang]?:slotInstructions.getValue("en"),Modifier.padding(12.dp))}
@@ -77,6 +77,10 @@ private val slotInstructions=mapOf("en" to "Print at 100%. Check the 50 mm squar
  if(valid){
  val layout=SheetLayout(w.toDouble(),h.toDouble(),a3)
  Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){for(part in 0..1){val b=remember(id,w,h,gap,part){slotPreview(id,w,h,gap,part==1)};Column(Modifier.weight(1f)){Text(if(part==0)"A" else "B");Image(b.asImageBitmap(),null,Modifier.fillMaxWidth().aspectRatio(.89f))}}}
+ val saveText=mapOf("en" to "Save project","ru" to "Сохранить проект","fi" to "Tallenna projekti","et" to "Salvesta projekt","sv" to "Spara projekt","de" to "Projekt speichern","fr" to "Enregistrer le projet","pl" to "Zapisz projekt","es" to "Guardar proyecto","it" to "Salva progetto","lv" to "Saglabāt projektu","lt" to "Išsaugoti projektą","nb" to "Lagre prosjekt","da" to "Gem projekt").getValue(lang)
+ var name by remember{mutableStateOf(project?.optString("name")?:t[id+1])}
+ OutlinedTextField(name,{name=it},label={Text(saveText)},enabled=!busy)
+ Button(enabled=!busy,onClick={val j=org.json.JSONObject().put("name",name.ifBlank{t[id+1]}).put("slotId",id).put("width",width).put("height",height).put("thickness",thickness).put("tolerance",tolerance).put("a3",a3);busy=true;scope.launch{try{withContext(Dispatchers.IO){creativeSave(context,slotPreview(id,w,h,gap,false),null,j)};status=t[10]}catch(e:Exception){status=t[11]}finally{busy=false}}}){Text(saveText)}
  Text("PDF: ${layout.count*2+1}")
  Button(enabled=!busy&&layout.count in 1..200,onClick={busy=true;scope.launch{var temp:File?=null;try{val f=withContext(Dispatchers.IO){File.createTempFile("slots-",".pdf",context.cacheDir).also{temp=it;it.outputStream().use{out->exportSlots(id,layout,gap,out)}}};pending=f;saver.launch("makeit-3d.pdf")}catch(e:Exception){temp?.delete();busy=false;status=t[11]}}}){Text(t[9])}
  }
