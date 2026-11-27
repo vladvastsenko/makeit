@@ -44,6 +44,20 @@ private fun slotPreview(id:Int,w:Float,h:Float,gap:Float,top:Boolean):Bitmap{
  Card(onClick={onOpen(id)},modifier=Modifier.weight(1f)){Image(b.asImageBitmap(),t[id+1],Modifier.fillMaxWidth().aspectRatio(.89f));Text(t[id+1],Modifier.padding(8.dp))}}
  }
 }
+private val slotInstructions=mapOf("en" to "Print at 100%. Check the 50 mm square. Join the sheets, cut parts A and B and slide the slots together at 90°. Test the slot on scrap first.",
+"ru" to "Печатайте в масштабе 100%. Проверьте квадрат 50 мм. Совместите листы, вырежьте детали A и B и соедините пазы под углом 90°. Сначала проверьте паз на обрезке.",
+"fi" to "Tulosta 100 % koossa. Tarkista 50 mm neliö. Yhdistä arkit, leikkaa osat A ja B ja liitä urat 90° kulmassa. Testaa ura ensin hukkapalalla.",
+"et" to "Prindi 100% mõõtkavas. Kontrolli 50 mm ruutu. Ühenda lehed, lõika osad A ja B ning ühenda pilud 90° nurga all. Katseta pilu esmalt jäägil.",
+"sv" to "Skriv ut i 100 %. Kontrollera 50 mm-rutan. Foga arken, skär ut A och B och sammanfoga spåren i 90°. Prova först på en spillbit.",
+"de" to "Drucke bei 100 %. Prüfe das 50-mm-Quadrat. Verbinde die Blätter, schneide A und B aus und stecke sie im 90°-Winkel zusammen. Teste den Schlitz am Reststück.",
+"fr" to "Imprimez à 100 %. Vérifiez le carré de 50 mm. Assemblez les feuilles, découpez A et B et emboîtez les fentes à 90°. Testez sur une chute.",
+"pl" to "Drukuj w skali 100%. Sprawdź kwadrat 50 mm. Połącz arkusze, wytnij A i B i złącz szczeliny pod kątem 90°. Najpierw wykonaj próbę na odpadzie.",
+"es" to "Imprime al 100 %. Comprueba el cuadrado de 50 mm. Une las hojas, corta A y B y encaja las ranuras a 90°. Prueba primero en un recorte.",
+"it" to "Stampa al 100%. Verifica il quadrato da 50 mm. Unisci i fogli, ritaglia A e B e incastra le fessure a 90°. Prova prima su uno scarto.",
+"lv" to "Drukā 100% mērogā. Pārbaudi 50 mm kvadrātu. Savieno lapas, izgriez A un B un savieno rievas 90° leņķī. Vispirms pārbaudi uz atgriezuma.",
+"lt" to "Spausdinkite 100% masteliu. Patikrinkite 50 mm kvadratą. Sujunkite lapus, išpjaukite A ir B ir sujunkite įpjovas 90° kampu. Pirmiausia išbandykite ant atraižos.",
+"nb" to "Skriv ut i 100 %. Kontroller 50 mm-ruten. Sett sammen arkene, skjær ut A og B og sett sporene sammen i 90°. Test først på en restbit.",
+"da" to "Udskriv i 100 %. Kontrollér 50 mm-firkanten. Saml arkene, skær A og B ud og saml slidserne i 90°. Test først på et reststykke.")
 @Composable internal fun SlotEditor(lang:String,id:Int){
  val t=slotText(lang);val context=LocalContext.current;val scope=rememberCoroutineScope()
  var width by remember(id){mutableStateOf("30")};var height by remember(id){mutableStateOf("60")}
@@ -51,6 +65,7 @@ private fun slotPreview(id:Int,w:Float,h:Float,gap:Float,top:Boolean):Bitmap{
  var a3 by remember{mutableStateOf(false)};var busy by remember{mutableStateOf(false)};var status by remember{mutableStateOf("")};var pending by remember{mutableStateOf<File?>(null)}
  val saver=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")){uri->val f=pending;pending=null;scope.launch{try{if(uri!=null&&f!=null){withContext(Dispatchers.IO){context.contentResolver.openOutputStream(uri)?.use{out->f.inputStream().use{it.copyTo(out)}}?:error("output")};status=t[10]}}catch(e:Exception){status=t[11]}finally{f?.delete();busy=false}}}
  Text(t[id+1],style=MaterialTheme.typography.titleLarge)
+ Card{Text(slotInstructions[lang]?:slotInstructions.getValue("en"),Modifier.padding(12.dp))}
  OutlinedTextField(width,{width=it},label={Text(t[5])},enabled=!busy)
  OutlinedTextField(height,{height=it},label={Text(t[6])},enabled=!busy)
  OutlinedTextField(thickness,{thickness=it},label={Text(t[7])},enabled=!busy)
