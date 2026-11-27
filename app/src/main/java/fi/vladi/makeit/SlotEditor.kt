@@ -65,11 +65,12 @@ private val slotInstructions=mapOf("en" to "Print at 100%. Check the 50 mm squar
  var a3 by remember{mutableStateOf(project?.optBoolean("a3")?:false)};var busy by remember{mutableStateOf(false)};var status by remember{mutableStateOf("")};var pending by remember{mutableStateOf<File?>(null)}
  val saver=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")){uri->val f=pending;pending=null;scope.launch{try{if(uri!=null&&f!=null){withContext(Dispatchers.IO){context.contentResolver.openOutputStream(uri)?.use{out->f.inputStream().use{it.copyTo(out)}}?:error("output")};status=t[10]}}catch(e:Exception){status=t[11]}finally{f?.delete();busy=false}}}
  var mask by remember{mutableStateOf<Bitmap?>(null)}
- LaunchedEffect(projectId){if(projectId!=null)mask=withContext(Dispatchers.IO){creativeImage(File(creativeRoot(context),projectId),"isolated.png")}}
+ var restoring by remember{mutableStateOf(projectId!=null)}
+ LaunchedEffect(projectId){try{if(projectId!=null){mask=withContext(Dispatchers.IO){creativeImage(File(creativeRoot(context),projectId),"isolated.png")};if(project?.optBoolean("custom")==true&&mask==null)status=t[11]}}catch(e:Exception){status=t[11]}finally{restoring=false}}
  val custom=remember(mask){mask?.let{runCatching{slotMaskPath(it)}.getOrNull()}}
  val picker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()){uri->if(uri!=null){busy=true;scope.launch{try{mask=withContext(Dispatchers.IO){val o=android.graphics.BitmapFactory.Options().apply{inJustDecodeBounds=true};context.contentResolver.openInputStream(uri)?.use{android.graphics.BitmapFactory.decodeStream(it,null,o)};var sample=1;while(maxOf(o.outWidth,o.outHeight)/sample>1024)sample*=2;val b=context.contentResolver.openInputStream(uri)?.use{android.graphics.BitmapFactory.decodeStream(it,null,android.graphics.BitmapFactory.Options().apply{inSampleSize=sample})}?:error("image");smartSelection(b,.01f,.01f,.99f,.99f,30)};status=if(mask?.let{runCatching{slotMaskPath(it)}.isSuccess}==true)t[10] else t[11]}catch(e:Exception){status=t[11]}finally{busy=false}}}}
  Button(enabled=!busy,onClick={picker.launch("image/*")}){Text(mapOf("en" to "Own image","ru" to "Своё изображение","fi" to "Oma kuva","et" to "Oma pilt","sv" to "Egen bild","de" to "Eigenes Bild","fr" to "Image personnelle","pl" to "Własny obraz","es" to "Imagen propia","it" to "Immagine personale","lv" to "Savs attēls","lt" to "Savas vaizdas","nb" to "Eget bilde","da" to "Eget billede").let{it[lang]?:it.getValue("en")})}
- if(mask!=null)OutlinedButton(onClick={mask=null},enabled=!busy){Text("×")}
+ if(mask!=null&&project?.optBoolean("custom")!=true)OutlinedButton(onClick={mask=null},enabled=!busy){Text("×")}
  Text(t[id+1],style=MaterialTheme.typography.titleLarge)
  Card{Text(slotInstructions[lang]?:slotInstructions.getValue("en"),Modifier.padding(12.dp))}
  OutlinedTextField(width,{width=it},label={Text(t[5])},enabled=!busy)
@@ -79,7 +80,7 @@ private val slotInstructions=mapOf("en" to "Print at 100%. Check the 50 mm squar
  Row{FilterChip(!a3,{a3=false},{Text("A4")});FilterChip(a3,{a3=true},{Text("A3")})}
  fun number(s:String)=s.replace(',','.').toFloatOrNull()
  val w=(number(width)?:0f)*10;val h=(number(height)?:0f)*10;val gap=(number(thickness)?:0f)+(number(tolerance)?:0f)
- val valid=(mask==null||custom!=null)&&number(tolerance)!=null&&w in 30f..5000f&&h in 30f..5000f&&gap in .5f..minOf(w*.08f,h*.08f)&&(number(thickness)?:0f)>0f
+ val valid=!restoring&&(project?.optBoolean("custom")!=true||mask!=null)&&(mask==null||custom!=null)&&number(tolerance)!=null&&w in 30f..5000f&&h in 30f..5000f&&gap in .5f..minOf(w*.08f,h*.08f)&&(number(thickness)?:0f)>0f
  val geometryOk=remember(id,w,h,gap,custom,valid){valid&&runCatching{(0..1).all{slotConnected(slotPart(id,w,h,gap,it==1,custom),w,h)}}.getOrDefault(false)}
  if(valid&&!geometryOk)Text(t[11])
  if(geometryOk){
@@ -88,7 +89,7 @@ private val slotInstructions=mapOf("en" to "Print at 100%. Check the 50 mm squar
  val saveText=mapOf("en" to "Save project","ru" to "Сохранить проект","fi" to "Tallenna projekti","et" to "Salvesta projekt","sv" to "Spara projekt","de" to "Projekt speichern","fr" to "Enregistrer le projet","pl" to "Zapisz projekt","es" to "Guardar proyecto","it" to "Salva progetto","lv" to "Saglabāt projektu","lt" to "Išsaugoti projektą","nb" to "Lagre prosjekt","da" to "Gem projekt").let{it[lang]?:it.getValue("en")}
  var name by remember{mutableStateOf(project?.optString("name")?:t[id+1])}
  OutlinedTextField(name,{name=it},label={Text(saveText)},enabled=!busy)
- Button(enabled=!busy,onClick={val j=org.json.JSONObject().put("name",name.ifBlank{t[id+1]}).put("slotId",id).put("width",width).put("height",height).put("thickness",thickness).put("tolerance",tolerance).put("a3",a3);busy=true;scope.launch{try{withContext(Dispatchers.IO){creativeSave(context,slotPreview(id,w,h,gap,false,custom),mask,j)};status=t[10]}catch(e:Exception){status=t[11]}finally{busy=false}}}){Text(saveText)}
+ Button(enabled=!busy,onClick={val j=org.json.JSONObject().put("name",name.ifBlank{t[id+1]}).put("slotId",id).put("custom",mask!=null).put("width",width).put("height",height).put("thickness",thickness).put("tolerance",tolerance).put("a3",a3);busy=true;scope.launch{try{withContext(Dispatchers.IO){creativeSave(context,slotPreview(id,w,h,gap,false,custom),mask,j)};status=t[10]}catch(e:Exception){status=t[11]}finally{busy=false}}}){Text(saveText)}
  Text("PDF: ${layout.count*2+1}")
  Button(enabled=!busy&&layout.count in 1..200,onClick={busy=true;scope.launch{var temp:File?=null;try{val f=withContext(Dispatchers.IO){File.createTempFile("slots-",".pdf",context.cacheDir).also{temp=it;it.outputStream().use{out->exportSlots(id,layout,gap,out,custom)}}};pending=f;saver.launch("makeit-3d.pdf")}catch(e:Exception){temp?.delete();busy=false;status=t[11]}}}){Text(t[9])}
  }
