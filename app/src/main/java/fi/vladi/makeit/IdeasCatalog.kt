@@ -61,7 +61,7 @@ fun IdeasCatalog(lang:String,onCreate:(Int)->Unit){
  val context=LocalContext.current
  val items=remember(context){catalog(context)}
  val titles=labels[lang]?:labels.getValue("en")
- for(category in titles.indices){
+ for(category in listOf(3,4,0,1,2)){
   Text(titles[category],style=MaterialTheme.typography.titleLarge)
   val ids=items.indices.filter{items[it].category==category}
   for(row in ids.chunked(2)){
