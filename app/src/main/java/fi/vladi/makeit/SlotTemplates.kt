@@ -12,20 +12,20 @@ internal fun slotShape(id:Int):Path=Path().apply{
  else->{moveTo(43f,0f);lineTo(57f,0f);lineTo(57f,15f);cubicTo(95f,0f,100f,35f,100f,55f);cubicTo(100f,90f,80f,100f,65f,100f);lineTo(35f,100f);cubicTo(20f,100f,0f,90f,0f,55f);cubicTo(0f,35f,5f,0f,43f,15f)}
  };close()
 }
-internal fun slotPart(id:Int,w:Float,h:Float,gap:Float,top:Boolean):Path{
+internal fun slotPart(id:Int,w:Float,h:Float,gap:Float,top:Boolean,custom:Path?=null):Path{
  require(w.isFinite()&&h.isFinite()&&gap.isFinite()&&w>0&&h>0&&gap>0&&gap<w*.08f+0.001f)
- val p=slotShape(id);val bounds=RectF();p.computeBounds(bounds,true)
+ val p=custom?.let{Path(it)}?:slotShape(id);val bounds=RectF();p.computeBounds(bounds,true)
  p.transform(Matrix().apply{setRectToRect(bounds,RectF(0f,0f,w,h),Matrix.ScaleToFit.FILL)})
  val notch=Path().apply{addRect(w/2-gap/2,if(top)-1f else h/2,w/2+gap/2,if(top)h/2 else h+1f,Path.Direction.CW)}
  check(p.op(notch,Path.Op.DIFFERENCE));check(!p.isEmpty);return p
 }
-internal fun exportSlots(id:Int,layout:SheetLayout,gap:Float,out:OutputStream){
+internal fun exportSlots(id:Int,layout:SheetLayout,gap:Float,out:OutputStream,custom:Path?=null){
  require(layout.count in 1..200)
  val doc=PdfDocument();val pt=72f/25.4f;val paint=Paint(Paint.ANTI_ALIAS_FLAG)
  var index=0
  try{
  for(part in 0..1){
- val path=slotPart(id,layout.width.toFloat(),layout.height.toFloat(),gap,part==1)
+ val path=slotPart(id,layout.width.toFloat(),layout.height.toFloat(),gap,part==1,custom)
  for(row in 0 until layout.rows)for(col in 0 until layout.columns){
  val page=doc.startPage(PdfDocument.PageInfo.Builder((layout.paperW*pt).roundToInt(),(layout.paperH*pt).roundToInt(),++index).create())
  val c=page.canvas;c.scale(pt,pt);paint.color=Color.BLACK;paint.style=Paint.Style.FILL;paint.textSize=3f
