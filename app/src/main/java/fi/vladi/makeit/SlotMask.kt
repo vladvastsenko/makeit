@@ -6,8 +6,8 @@ internal fun slotMaskPath(source:Bitmap):Path{
  for(y in 0..255)for(x in 0..255)if(Color.alpha(b.getPixel(x,y))>127){left[y]=minOf(left[y],x);right[y]=maxOf(right[y],x)}
  val first=right.indexOfFirst{it>=0};val last=right.indexOfLast{it>=0}
  require(first>=0&&last-first>=20)
- require((first..last).all{right[it]>left[it]})
- val bottom=(last-(last-first)*.03f).toInt()
+ require((first..last).all{right[it]>=left[it]})
+ val bottom=(last-(last-first)*.03f).toInt();require(right[bottom]-left[bottom]>=8);require((first until bottom).all{left[it]<=right[it+1]+1&&left[it+1]<=right[it]+1})
  return Path().apply{moveTo(left[first].toFloat(),first.toFloat());for(y in first+1..bottom)lineTo(left[y].toFloat(),y.toFloat());for(y in bottom downTo first)lineTo(right[y].toFloat(),y.toFloat());close()}
 }
 internal fun slotConnected(path:Path,w:Float,h:Float):Boolean{
